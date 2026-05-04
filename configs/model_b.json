@@ -1,0 +1,75 @@
+{
+  "variant_id": "CAT-D6-ENG-B2",
+  "variant_name": "Model B — Heavy-Duty Engine Mount",
+  "description": "HD variant with reinforced bracket & M12 hardware",
+  "trolley": {
+    "trolley_id": "T-SMALL-01",
+    "type": "small_parts",
+    "bin_count": 6
+  },
+  "bins": [
+    {
+      "bin_id": 1,
+      "part_number": "8T-4144",
+      "part_name": "Bolt M12x50 Grade 10.9",
+      "unit_weight_g": 68.0,
+      "weight_tolerance_g": 4.0,
+      "initial_qty": 20,
+      "led_position": 0
+    },
+    {
+      "bin_id": 2,
+      "part_number": "2H-3725",
+      "part_name": "Washer Flat M12",
+      "unit_weight_g": 8.2,
+      "weight_tolerance_g": 1.2,
+      "initial_qty": 40,
+      "led_position": 1
+    },
+    {
+      "bin_id": 3,
+      "part_number": "5P-1082",
+      "part_name": "Hex Nut M12 Nylock",
+      "unit_weight_g": 18.5,
+      "weight_tolerance_g": 2.0,
+      "initial_qty": 30,
+      "led_position": 2
+    },
+    {
+      "bin_id": 4,
+      "part_number": "9X-8263",
+      "part_name": "Spring Washer M12",
+      "unit_weight_g": 5.1,
+      "weight_tolerance_g": 1.0,
+      "initial_qty": 40,
+      "led_position": 3
+    },
+    {
+      "bin_id": 5,
+      "part_number": "1P-7412",
+      "part_name": "HD Bracket Engine Mount LH",
+      "unit_weight_g": 420.0,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 10,
+      "led_position": 4
+    },
+    {
+      "bin_id": 6,
+      "part_number": "1P-7413",
+      "part_name": "HD Bracket Engine Mount RH",
+      "unit_weight_g": 420.0,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 10,
+      "led_position": 5
+    }
+  ],
+  "pick_sequence": [
+    { "step": 1, "bin_id": 5, "qty": 1, "instruction": "Place HD LH bracket on fixture" },
+    { "step": 2, "bin_id": 6, "qty": 1, "instruction": "Place HD RH bracket on fixture" },
+    { "step": 3, "bin_id": 1, "qty": 6, "instruction": "Insert 6 bolts (HD pattern)" },
+    { "step": 4, "bin_id": 2, "qty": 6, "instruction": "Add flat washers" },
+    { "step": 5, "bin_id": 4, "qty": 6, "instruction": "Add spring washers" },
+    { "step": 6, "bin_id": 3, "qty": 6, "instruction": "Thread nylock nuts" }
+  ],
+  "cycle_time_target_sec": 110
+}

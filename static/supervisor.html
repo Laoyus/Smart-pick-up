@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Assistive Part Pick — Supervisor Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">CAT<span style="color:#333;font-size:18px;margin-left:6px;letter-spacing:0.12em;">SMART PICK</span></div>
+  <div class="divider"></div>
+  <div class="subtitle">Supervisor Dashboard</div>
+  <div class="nav">
+    <a href="/">Operator</a>
+    <a href="/supervisor" class="active">Supervisor</a>
+  </div>
+</div>
+
+<div style="height:calc(100vh - 56px);overflow-y:auto;">
+
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="label">Active Variant</div>
+      <div class="value" id="m-variant" style="font-size:22px;">—</div>
+    </div>
+    <div class="metric accent-ok">
+      <div class="label">Correct Picks</div>
+      <div class="value" id="m-correct">0</div>
+    </div>
+    <div class="metric accent-err">
+      <div class="label">Errors</div>
+      <div class="value" id="m-errors">0</div>
+    </div>
+    <div class="metric accent-warn">
+      <div class="label">Progress</div>
+      <div class="value" id="m-progress">0<span class="unit">/ 0</span></div>
+    </div>
+  </div>
+
+  <div class="dash-section-title">Pick Sequence Timeline</div>
+  <div class="sequence-track" id="seq-track"></div>
+
+  <div class="dash-section-title">Bin Inventory</div>
+  <div id="inventory-grid" style="padding:12px 24px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;"></div>
+
+  <div class="dash-section-title">Recent Events</div>
+  <div class="event-log" id="sup-event-log" style="max-height:280px;padding: 12px 24px 24px;"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+
+const state = { bins: [], sequence: [], completedSteps: new Set(), activeStep: null };
+
+const $ = (id) => document.getElementById(id);
+
+function fmtTs(ms) {
+  const d = new Date(ms);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, "0")).join(":");
+}
+
+function renderSequence() {
+  const el = $("seq-track");
+  el.innerHTML = "";
+  for (const s of state.sequence) {
+    const node = document.createElement("div");
+    const cls = state.completedSteps.has(s.step) ? "done"
+              : (state.activeStep === s.step ? "active" : "");
+    node.className = "seq-node " + cls;
+    const bin = state.bins.find(b => b.bin_id === s.bin_id);
+    node.innerHTML = `
+      <div class="st-num">STEP ${s.step} · BIN ${s.bin_id}</div>
+      <div class="st-text">${s.qty}× ${bin ? bin.part_name.slice(0,18) : ""}</div>`;
+    el.appendChild(node);
+  }
+}
+
+function renderInventory() {
+  const el = $("inventory-grid");
+  el.innerHTML = "";
+  for (const b of state.bins) {
+    const card = document.createElement("div");
+    card.className = "metric";
+    card.style.borderLeftColor = "var(--cat-yellow)";
+    card.innerHTML = `
+      <div class="label">BIN ${b.bin_id} · ${b.part_number}</div>
+      <div class="value" style="font-size:20px;">${b.part_name}</div>
+      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-2);margin-top:6px;">
+        Qty: <span id="inv-${b.bin_id}" style="color:var(--text-0);">${b.initial_qty}</span> / ${b.initial_qty}
+        · ${b.unit_weight_g}g each
+      </div>`;
+    el.appendChild(card);
+  }
+}
+
+function logEvent(cls, kind, msg) {
+  const line = document.createElement("div");
+  line.className = `entry ${cls}`;
+  line.innerHTML = `<span class="ts">${fmtTs(Date.now())}</span><span class="kind">${kind}</span>${msg}`;
+  const log = $("sup-event-log");
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+socket.on("engine_event", (ev) => {
+  switch (ev.type) {
+    case "variant_loaded":
+      state.bins = ev.bins;
+      state.sequence = ev.sequence;
+      state.completedSteps = new Set();
+      state.activeStep = null;
+      $("m-variant").textContent = ev.variant_id;
+      $("m-progress").innerHTML = `0<span class="unit">/ ${ev.sequence.length}</span>`;
+      $("m-correct").textContent = "0";
+      $("m-errors").textContent = "0";
+      renderSequence();
+      renderInventory();
+      $("sup-event-log").innerHTML = "";
+      logEvent("info", "VARIANT", `${ev.variant_id} loaded`);
+      break;
+    case "step_started":
+      state.activeStep = ev.step;
+      renderSequence();
+      logEvent("info", "STEP", `Step ${ev.step}: ${ev.qty}× ${ev.part_name}`);
+      break;
+    case "pick_correct":
+      state.completedSteps.add(ev.step);
+      const done = state.completedSteps.size;
+      $("m-progress").innerHTML = `${done}<span class="unit">/ ${state.sequence.length}</span>`;
+      $("m-correct").textContent = +$("m-correct").textContent + 1;
+      // update inventory
+      const invEl = $(`inv-${ev.bin_id}`);
+      if (invEl) invEl.textContent = ev.remaining;
+      logEvent("ok", "PICK OK", `bin ${ev.bin_id} · ${ev.qty_picked} picked · ${ev.remaining} remaining`);
+      renderSequence();
+      break;
+    case "pick_wrong_bin":
+      $("m-errors").textContent = +$("m-errors").textContent + 1;
+      logEvent("err", "WRONG BIN", ev.message);
+      break;
+    case "pick_qty_mismatch":
+      $("m-errors").textContent = +$("m-errors").textContent + 1;
+      logEvent("err", "QTY ERROR", ev.message);
+      break;
+    case "ghost_ir":
+      logEvent("warn", "GHOST IR", ev.message);
+      break;
+    case "operator_stuck":
+      logEvent("warn", "STUCK", ev.message);
+      break;
+    case "variant_complete":
+      logEvent("ok", "COMPLETE",
+        `${ev.variant_id} · ${ev.total_time_sec}s (target ${ev.target_time_sec}s) · ${ev.errors} errors`);
+      break;
+  }
+});
+</script>
+
+</body>
+</html>

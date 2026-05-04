@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Assistive Part Pick — Operator View</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">CAT<span style="color:#333;font-size:18px;margin-left:6px;letter-spacing:0.12em;">SMART PICK</span></div>
+  <div class="divider"></div>
+  <div class="subtitle">Assembly Line — Operator HMI</div>
+  <div class="nav">
+    <a href="/" class="active">Operator</a>
+    <a href="/supervisor">Supervisor</a>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- LEFT: variant selector + controls -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Variant Configuration</span>
+      <span class="tag">JSON</span>
+    </div>
+    <div class="panel-body">
+      <p style="color:var(--text-2);font-size:12px;margin-bottom:12px;">
+        Swap variants by loading a different JSON config — no hardware changes.
+      </p>
+      <div id="variant-list"></div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="btn-start" class="btn primary full" disabled>▶ Start Sequence</button>
+      </div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button id="btn-reset" class="btn ghost full">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="fault-panel">
+      <div class="title">◉ Fault Injection</div>
+      <p>Inject edge cases to demonstrate robustness:</p>
+      <div class="btn-row">
+        <button id="btn-ir-only" class="btn" style="flex:1;">Ghost IR</button>
+        <button id="btn-wrong-bin" class="btn" style="flex:1;">Wrong Bin</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px;">
+        <button id="btn-wrong-qty" class="btn full">Wrong Quantity</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: the trolley stage -->
+  <div class="stage">
+    <div class="stage-header">
+      <div class="stage-title" id="variant-title">No variant loaded</div>
+      <div class="stage-meta">
+        <div class="kv"><span>STEP</span><span id="hdr-step">—/—</span></div>
+        <div class="kv"><span>ERRORS</span><span id="hdr-errors">0</span></div>
+        <div class="kv"><span>STATE</span><span id="hdr-state">IDLE</span></div>
+      </div>
+    </div>
+
+    <div id="step-card-wrap" style="padding: 0 24px;"></div>
+
+    <div class="trolley-wrap">
+      <div class="trolley">
+        <div class="bins" id="bins"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: event log -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Event Stream</span>
+      <span class="tag" id="event-count">0</span>
+    </div>
+    <div class="event-log" id="event-log"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/app.js"></script>
+
+</body>
+</html>

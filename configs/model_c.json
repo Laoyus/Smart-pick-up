@@ -1,0 +1,75 @@
+{
+  "variant_id": "CAT-D6-ENG-C3",
+  "variant_name": "Model C — Isolator Mount Variant",
+  "description": "Rubber-isolator mount variant with different part mix & sequence",
+  "trolley": {
+    "trolley_id": "T-SMALL-01",
+    "type": "small_parts",
+    "bin_count": 6
+  },
+  "bins": [
+    {
+      "bin_id": 1,
+      "part_number": "8T-4121",
+      "part_name": "Bolt M10x40 Grade 10.9",
+      "unit_weight_g": 42.5,
+      "weight_tolerance_g": 3.0,
+      "initial_qty": 20,
+      "led_position": 0
+    },
+    {
+      "bin_id": 2,
+      "part_number": "3K-9812",
+      "part_name": "Rubber Isolator Bush",
+      "unit_weight_g": 22.0,
+      "weight_tolerance_g": 2.5,
+      "initial_qty": 20,
+      "led_position": 1
+    },
+    {
+      "bin_id": 3,
+      "part_number": "5P-1076",
+      "part_name": "Hex Nut M10",
+      "unit_weight_g": 11.2,
+      "weight_tolerance_g": 1.5,
+      "initial_qty": 30,
+      "led_position": 2
+    },
+    {
+      "bin_id": 4,
+      "part_number": "7C-2204",
+      "part_name": "Steel Sleeve Insert",
+      "unit_weight_g": 35.0,
+      "weight_tolerance_g": 2.5,
+      "initial_qty": 20,
+      "led_position": 3
+    },
+    {
+      "bin_id": 5,
+      "part_number": "1P-7390",
+      "part_name": "Isolator Bracket LH",
+      "unit_weight_g": 195.0,
+      "weight_tolerance_g": 6.0,
+      "initial_qty": 10,
+      "led_position": 4
+    },
+    {
+      "bin_id": 6,
+      "part_number": "1P-7391",
+      "part_name": "Isolator Bracket RH",
+      "unit_weight_g": 195.0,
+      "weight_tolerance_g": 6.0,
+      "initial_qty": 10,
+      "led_position": 5
+    }
+  ],
+  "pick_sequence": [
+    { "step": 1, "bin_id": 2, "qty": 4, "instruction": "Stage 4 rubber isolator bushes" },
+    { "step": 2, "bin_id": 4, "qty": 4, "instruction": "Press steel sleeve into each bush" },
+    { "step": 3, "bin_id": 5, "qty": 1, "instruction": "Place LH isolator bracket" },
+    { "step": 4, "bin_id": 6, "qty": 1, "instruction": "Place RH isolator bracket" },
+    { "step": 5, "bin_id": 1, "qty": 4, "instruction": "Insert bolts through bushes" },
+    { "step": 6, "bin_id": 3, "qty": 4, "instruction": "Thread hex nuts" }
+  ],
+  "cycle_time_target_sec": 130
+}

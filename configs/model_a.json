@@ -1,0 +1,75 @@
+{
+  "variant_id": "CAT-D6-ENG-A1",
+  "variant_name": "Model A — Standard Engine Mount",
+  "description": "Baseline engine-mount sub-assembly kit",
+  "trolley": {
+    "trolley_id": "T-SMALL-01",
+    "type": "small_parts",
+    "bin_count": 6
+  },
+  "bins": [
+    {
+      "bin_id": 1,
+      "part_number": "8T-4121",
+      "part_name": "Bolt M10x40 Grade 10.9",
+      "unit_weight_g": 42.5,
+      "weight_tolerance_g": 3.0,
+      "initial_qty": 20,
+      "led_position": 0
+    },
+    {
+      "bin_id": 2,
+      "part_number": "2H-3719",
+      "part_name": "Washer Flat M10",
+      "unit_weight_g": 4.8,
+      "weight_tolerance_g": 1.0,
+      "initial_qty": 40,
+      "led_position": 1
+    },
+    {
+      "bin_id": 3,
+      "part_number": "5P-1076",
+      "part_name": "Hex Nut M10",
+      "unit_weight_g": 11.2,
+      "weight_tolerance_g": 1.5,
+      "initial_qty": 30,
+      "led_position": 2
+    },
+    {
+      "bin_id": 4,
+      "part_number": "9X-8256",
+      "part_name": "Spring Washer M10",
+      "unit_weight_g": 3.4,
+      "weight_tolerance_g": 0.8,
+      "initial_qty": 40,
+      "led_position": 3
+    },
+    {
+      "bin_id": 5,
+      "part_number": "1P-7379",
+      "part_name": "Bracket Engine Mount LH",
+      "unit_weight_g": 285.0,
+      "weight_tolerance_g": 8.0,
+      "initial_qty": 10,
+      "led_position": 4
+    },
+    {
+      "bin_id": 6,
+      "part_number": "1P-7380",
+      "part_name": "Bracket Engine Mount RH",
+      "unit_weight_g": 285.0,
+      "weight_tolerance_g": 8.0,
+      "initial_qty": 10,
+      "led_position": 5
+    }
+  ],
+  "pick_sequence": [
+    { "step": 1, "bin_id": 5, "qty": 1, "instruction": "Place LH bracket on fixture" },
+    { "step": 2, "bin_id": 6, "qty": 1, "instruction": "Place RH bracket on fixture" },
+    { "step": 3, "bin_id": 1, "qty": 4, "instruction": "Insert 4 bolts through bracket holes" },
+    { "step": 4, "bin_id": 2, "qty": 4, "instruction": "Add flat washers" },
+    { "step": 5, "bin_id": 4, "qty": 4, "instruction": "Add spring washers" },
+    { "step": 6, "bin_id": 3, "qty": 4, "instruction": "Thread hex nuts — hand tight" }
+  ],
+  "cycle_time_target_sec": 90
+}
