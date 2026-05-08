@@ -3,7 +3,7 @@ hardware_abstraction.py
 =======================
 Defines the hardware interface used by sequence_engine.py.
 
-For the May 5 Round 2 demo this is a MOCK implementation that broadcasts
+This is a MOCK implementation that broadcasts
 events over WebSocket so the browser frontend can visualize the trolley.
 
 For Round 3 prototype (Raspberry Pi), ONLY this file changes:
@@ -57,7 +57,7 @@ class HardwareInterface(ABC):
 
 class MockHardware(HardwareInterface):
     """
-    Mock backend for the May 5 simulation.
+    Mock backend for the simulation.
     All actions are broadcast to connected browser clients via an event emitter,
     which app.py wires up to Flask-SocketIO.
     """
