@@ -1,0 +1,59 @@
+{
+  "variant_id": "CAT-HYD-LG-01",
+  "variant_name": "Hydraulic Cylinder Kit — Large Trolley",
+  "description": "Boom and bucket hydraulic cylinder assembly for D6 dozer — large parts trolley (LARGE_A01)",
+  "operating_mode": "standalone",
+  "cart_id": "LARGE_A01",
+  "trolley": {
+    "trolley_id": "LARGE_A01",
+    "type": "large_parts",
+    "bin_count": 4,
+    "note": "IR-sensor confirmation only — load cells optional on large-parts trolley"
+  },
+  "bins": [
+    {
+      "bin_id": 1,
+      "part_number": "9R-4508",
+      "part_name": "Boom Cylinder 90mm",
+      "unit_weight_g": 3800.0,
+      "weight_tolerance_g": 120.0,
+      "initial_qty": 4,
+      "led_position": 0
+    },
+    {
+      "bin_id": 2,
+      "part_number": "9R-4412",
+      "part_name": "Bucket Cylinder 70mm",
+      "unit_weight_g": 2900.0,
+      "weight_tolerance_g": 90.0,
+      "initial_qty": 4,
+      "led_position": 1
+    },
+    {
+      "bin_id": 3,
+      "part_number": "6V-3965",
+      "part_name": "Rod End Seal Kit",
+      "unit_weight_g": 185.0,
+      "weight_tolerance_g": 12.0,
+      "initial_qty": 12,
+      "led_position": 2
+    },
+    {
+      "bin_id": 4,
+      "part_number": "7X-1844",
+      "part_name": "Cylinder End Cap",
+      "unit_weight_g": 395.0,
+      "weight_tolerance_g": 18.0,
+      "initial_qty": 8,
+      "led_position": 3
+    }
+  ],
+  "pick_sequence": [
+    { "step": 1, "bin_id": 1, "qty": 1, "instruction": "Lift boom cylinder onto assembly cradle" },
+    { "step": 2, "bin_id": 2, "qty": 1, "instruction": "Lift bucket cylinder onto assembly cradle" },
+    { "step": 3, "bin_id": 3, "qty": 2, "instruction": "Install rod-end seal kits on both cylinders" },
+    { "step": 4, "bin_id": 4, "qty": 4, "instruction": "Fit end caps — 2 per cylinder" }
+  ],
+  "substitution_rules": {},
+  "cycle_time_target_sec": 75
+}

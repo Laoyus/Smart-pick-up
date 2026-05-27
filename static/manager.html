@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Assistive Part Pick — Fleet Manager</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">CAT<span style="color:#333;font-size:18px;margin-left:6px;letter-spacing:0.12em;">SMART PICK</span></div>
+  <div class="divider"></div>
+  <div class="subtitle">Fleet Manager</div>
+  <div class="nav">
+    <a href="/manager" class="active">Manager</a>
+    <a href="/">Operator</a>
+    <a href="/supervisor">Supervisor</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ======================================================
+       LEFT — fleet status cards + mode control
+  ====================================================== -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Operating Mode</span>
+      <span class="tag" id="mode-badge">STANDALONE</span>
+    </div>
+    <div class="panel-body" style="padding-bottom:0;">
+      <div class="mode-selector">
+        <label class="mode-opt" id="opt-standalone">
+          <input type="radio" name="mode" value="standalone" checked>
+          <span class="mode-label">Standalone</span>
+          <span class="mode-desc">Each trolley runs its own variant independently</span>
+        </label>
+        <label class="mode-opt" id="opt-linked">
+          <input type="radio" name="mode" value="linked">
+          <span class="mode-label">Linked</span>
+          <span class="mode-desc">Both trolleys coordinate as one logical system</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel-header" style="margin-top:0;">
+      <span>Fleet Status</span>
+    </div>
+    <div class="panel-body" style="flex:1;">
+      <div id="fleet-cards"></div>
+    </div>
+
+    <div style="padding:14px 18px;border-top:1px solid var(--line);">
+      <button class="btn danger full" id="btn-estop">⊗ Emergency Stop — All Trolleys</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       CENTER — config library + push controls
+  ====================================================== -->
+  <div class="stage" style="overflow-y:auto;">
+    <div class="stage-header">
+      <div class="stage-title">Variant Library</div>
+      <div class="stage-meta">
+        <div class="kv"><span>CONFIGS</span><span id="config-count">0</span></div>
+        <div class="kv"><span>REROUTES</span><span id="reroute-count">0</span></div>
+      </div>
+    </div>
+
+    <!-- Linked sequence quick-start -->
+    <div id="linked-start-panel" style="display:none;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--bg-1);">
+      <div style="font-family:var(--font-display);font-size:11px;letter-spacing:.15em;color:var(--status-warn);text-transform:uppercase;margin-bottom:8px;">
+        ◈ Linked Sequence Control
+      </div>
+      <div id="linked-config-list"></div>
+    </div>
+
+    <!-- Config list -->
+    <div style="padding:14px 24px 0;">
+      <div style="font-family:var(--font-display);font-size:11px;letter-spacing:.15em;color:var(--text-2);text-transform:uppercase;margin-bottom:10px;">
+        Available Variants
+      </div>
+      <div id="config-list"></div>
+    </div>
+
+    <!-- Upload section -->
+    <div style="padding:20px 24px;border-top:1px solid var(--line);margin-top:16px;">
+      <div style="font-family:var(--font-display);font-size:11px;letter-spacing:.15em;color:var(--text-2);text-transform:uppercase;margin-bottom:10px;">
+        Upload &amp; Push Custom Variant
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <input type="file" id="upload-file" accept=".json"
+          style="flex:1;background:var(--bg-2);border:1px solid var(--line);
+                 color:var(--text-1);padding:8px;font-family:var(--font-mono);font-size:11px;">
+        <select id="upload-target"
+          style="background:var(--bg-2);border:1px solid var(--line);
+                 color:var(--text-0);padding:8px;font-family:var(--font-display);
+                 font-size:12px;letter-spacing:.08em;text-transform:uppercase;">
+          <option value="SMALL_A01">SMALL_A01</option>
+          <option value="LARGE_A01">LARGE_A01</option>
+          <option value="all">ALL TROLLEYS</option>
+        </select>
+      </div>
+      <button class="btn primary full" id="btn-upload-push">⬆ Upload &amp; Push to Trolley</button>
+    </div>
+  </div>
+
+  <!-- ======================================================
+       RIGHT — fleet event log
+  ====================================================== -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Fleet Events</span>
+      <span class="tag" id="fleet-event-count">0</span>
+    </div>
+    <div class="event-log" id="fleet-log"></div>
+  </div>
+
+</div><!-- .layout -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const $ = id => document.getElementById(id);
+
+/* ---- state ---- */
+const state = {
+  mode: "standalone",
+  trolleys: {},   // cart_id → {status, loaded_config_id, is_active, ...}
+  configs: [],
+};
+
+/* ---- helpers ---- */
+function fmtTs(ms) {
+  const d = new Date(ms);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, "0")).join(":");
+}
+
+let fleetEvtCount = 0;
+function logFleet(cls, kind, msg) {
+  fleetEvtCount++;
+  $("fleet-event-count").textContent = fleetEvtCount;
+  const line = document.createElement("div");
+  line.className = `entry ${cls}`;
+  line.innerHTML = `<span class="ts">${fmtTs(Date.now())}</span><span class="kind">${kind}</span>${msg}`;
+  const log = $("fleet-log");
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ---- mode control ---- */
+document.querySelectorAll("input[name=mode]").forEach(radio => {
+  radio.addEventListener("change", async () => {
+    const mode = radio.value;
+    await fetch("/api/fleet/mode", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({mode})
+    });
+  });
+});
+
+function applyMode(mode) {
+  state.mode = mode;
+  $("mode-badge").textContent = mode.toUpperCase();
+  $("linked-start-panel").style.display = mode === "linked" ? "block" : "none";
+  document.querySelectorAll("input[name=mode]").forEach(r => {
+    r.checked = r.value === mode;
+  });
+}
+
+/* ---- fleet cards ---- */
+function renderFleetCards() {
+  const el = $("fleet-cards");
+  el.innerHTML = "";
+  for (const [cid, t] of Object.entries(state.trolleys)) {
+    const isActive = t.is_active;
+    const statusCls = {
+      idle: "", loaded: "accent-warn", running: "accent-ok", done: "accent-ok", error: "accent-err"
+    }[t.status] || "";
+
+    const card = document.createElement("div");
+    card.className = `fleet-card ${isActive ? "fleet-active" : ""}`;
+    card.id = `fc-${cid}`;
+    const authority = t.authority || "manager";
+    const isMgr     = authority !== "operator";
+    card.innerHTML = `
+      <div class="fc-header">
+        <span class="fc-id">${cid}</span>
+        <span class="fc-status ${statusCls}">${(t.status||"idle").toUpperCase()}</span>
+      </div>
+      <div class="fc-config">${t.loaded_config_id || "— No variant loaded —"}</div>
+      <div class="fc-step">
+        Step ${t.current_step || 0} / ${t.total_steps || 0}
+        · Correct: ${t.correct_picks || 0}
+        · Errors: ${t.errors || 0}
+      </div>
+      <div class="fc-authority">
+        <span class="auth-label ${isMgr ? "auth-label-active" : ""}">🔒 MANAGER</span>
+        <div class="auth-toggle ${!isMgr ? "auth-toggle-opr" : ""}"
+             onclick="setAuthority('${cid}','${isMgr ? "operator" : "manager"}')">
+          <div class="auth-thumb"></div>
+        </div>
+        <span class="auth-label auth-label-right ${!isMgr ? "auth-label-active" : ""}">🔓 OPERATOR</span>
+      </div>
+      <div class="fc-actions">
+        <button class="btn" style="flex:1;font-size:11px;"
+          onclick="startTrolley('${cid}')">▶ Start</button>
+        <button class="btn ghost" style="flex:1;font-size:11px;"
+          onclick="resetTrolley('${cid}')">↺ Reset</button>
+      </div>`;
+    el.appendChild(card);
+  }
+}
+
+async function startTrolley(cartId) {
+  const r = await fetch("/api/fleet/variant/activate", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({cart_id: cartId})
+  });
+  const d = await r.json();
+  if (!d.ok) logFleet("err", "START", d.error || "failed");
+}
+
+async function resetTrolley(cartId) {
+  await fetch("/api/fleet/emergency_stop", {method: "POST"});
+}
+
+/* ---- config library ---- */
+async function loadConfigs() {
+  const r = await fetch("/api/fleet/configs");
+  state.configs = await r.json();
+  $("config-count").textContent = state.configs.length;
+  renderConfigs();
+  renderLinkedConfigs();
+}
+
+function renderConfigs() {
+  const el = $("config-list");
+  el.innerHTML = "";
+  for (const c of state.configs) {
+    const isLinked = c.operating_mode === "linked";
+    const row = document.createElement("div");
+    row.className = "config-row";
+    row.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;">
+          <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-2);">${c.variant_id}</span>
+          <span class="tag" style="background:${isLinked ? "rgba(255,174,0,.15)" : "var(--bg-3)"};
+            color:${isLinked ? "var(--status-warn)" : "var(--text-2)"};">
+            ${isLinked ? "LINKED" : "STANDALONE"}
+          </span>
+        </div>
+        <div style="font-family:var(--font-display);font-size:14px;letter-spacing:.04em;font-weight:600;">
+          ${c.variant_name}
+        </div>
+        <div style="font-size:11px;color:var(--text-2);margin-top:2px;">${c.description}</div>
+      </div>
+      ${!isLinked ? `
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+        <button class="btn" style="font-size:10px;padding:5px 8px;"
+          onclick="pushConfig('${c.filename}','SMALL_A01')">→ SMALL</button>
+        <button class="btn" style="font-size:10px;padding:5px 8px;"
+          onclick="pushConfig('${c.filename}','LARGE_A01')">→ LARGE</button>
+      </div>` : ""}
+    `;
+    el.appendChild(row);
+  }
+}
+
+function renderLinkedConfigs() {
+  const el = $("linked-config-list");
+  el.innerHTML = "";
+  const linked = state.configs.filter(c => c.operating_mode === "linked");
+  for (const c of linked) {
+    const row = document.createElement("div");
+    row.className = "config-row";
+    row.style.marginBottom = "6px";
+    row.innerHTML = `
+      <div style="flex:1;">
+        <div style="font-family:var(--font-display);font-size:13px;font-weight:600;">${c.variant_name}</div>
+        <div style="font-size:11px;color:var(--text-2);">Trolleys: ${c.trolley_group.join(", ")}</div>
+      </div>
+      <button class="btn primary" style="font-size:11px;padding:7px 12px;"
+        onclick="startLinked('${c.filename}')">▶ Start Linked</button>
+    `;
+    el.appendChild(row);
+  }
+  if (linked.length === 0) {
+    el.innerHTML = `<div style="color:var(--text-2);font-size:12px;">No linked configs available.</div>`;
+  }
+}
+
+async function pushConfig(filename, cartId) {
+  const r = await fetch("/api/fleet/variant/push", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({filename, cart_id: cartId})
+  });
+  const d = await r.json();
+  if (d.ok) logFleet("info", "PUSH", `${filename} → ${cartId}`);
+  else      logFleet("err",  "PUSH", d.error || "failed");
+}
+
+async function startLinked(filename) {
+  const r = await fetch("/api/fleet/linked/start", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({filename})
+  });
+  const d = await r.json();
+  if (d.ok) logFleet("info", "LINKED", `Started ${d.variant_id}`);
+  else      logFleet("err",  "LINKED", d.error || "failed");
+}
+
+/* ---- authority control ---- */
+async function setAuthority(cartId, authority) {
+  const r = await fetch("/api/fleet/authority", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({cart_id: cartId, authority})
+  });
+  const d = await r.json();
+  if (!d.ok) logFleet("err", "AUTHORITY", d.error || "failed");
+}
+
+/* ---- emergency stop ---- */
+$("btn-estop").onclick = async () => {
+  await fetch("/api/fleet/emergency_stop", {method: "POST"});
+  logFleet("err", "E-STOP", "All trolleys stopped and reset");
+};
+
+/* ---- upload & push ---- */
+$("btn-upload-push").onclick = async () => {
+  const file = $("upload-file").files[0];
+  if (!file) { logFleet("err", "UPLOAD", "No file selected"); return; }
+  const text = await file.text();
+  let config;
+  try { config = JSON.parse(text); }
+  catch { logFleet("err", "UPLOAD", "Invalid JSON"); return; }
+
+  const cartId = $("upload-target").value;
+  const r = await fetch("/api/fleet/variant/push", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({config, cart_id: cartId})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    logFleet("ok", "UPLOAD", `${file.name} pushed to ${d.pushed_to.join(", ")}`);
+    loadConfigs();
+  } else {
+    logFleet("err", "UPLOAD", d.error || "failed");
+  }
+};
+
+/* ---- socket handlers ---- */
+socket.on("coordinator_event", ev => {
+  switch (ev.type) {
+    case "mode_changed":
+      applyMode(ev.mode);
+      logFleet("info", "MODE", ev.mode.toUpperCase());
+      break;
+    case "trolley_status":
+      state.trolleys[ev.cart_id] = {...(state.trolleys[ev.cart_id] || {}), ...ev};
+      renderFleetCards();
+      break;
+    case "trolley_activated":
+      logFleet("info", "PHASE",
+        `${ev.cart_id} activated — Phase ${ev.phase}/${ev.total_phases} · Steps ${ev.first_step}–${ev.last_step}`);
+      break;
+    case "linked_started":
+      logFleet("ok", "LINKED", `${ev.variant_id} started · ${ev.total_steps} steps · ${ev.total_phases} phases`);
+      break;
+    case "linked_complete":
+      logFleet("ok", "COMPLETE",
+        `${ev.variant_id} · ${ev.total_time_sec}s / ${ev.target_time_sec}s target`);
+      break;
+  }
+});
+
+socket.on("engine_event", ev => {
+  const tag = ev.cart_id ? `[${ev.cart_id}] ` : "";
+  switch (ev.type) {
+    case "variant_loaded":
+      if (state.trolleys[ev.cart_id]) {
+        state.trolleys[ev.cart_id].loaded_config_id = ev.variant_id;
+      }
+      renderFleetCards();
+      logFleet("info", "LOAD", `${tag}${ev.variant_id}`);
+      break;
+    case "step_started":
+      logFleet("info", "STEP", `${tag}Step ${ev.step}: ${ev.qty}× ${ev.part_name}`);
+      break;
+    case "pick_correct":
+      logFleet("ok", "PICK OK", `${tag}bin ${ev.bin_id} · qty ${ev.qty_picked}`);
+      break;
+    case "pick_wrong_bin":
+      logFleet("err", "WRONG BIN", `${tag}${ev.message}`);
+      break;
+    case "pick_qty_mismatch":
+      logFleet("err", "QTY ERR", `${tag}${ev.message}`);
+      break;
+    case "variant_complete":
+      logFleet("ok", "DONE", `${tag}${ev.variant_id} · ${ev.total_time_sec}s · ${ev.errors} errors`);
+      break;
+  }
+  // Keep step count in fleet cards
+  if (ev.cart_id && state.trolleys[ev.cart_id]) {
+    if (ev.type === "step_started")
+      state.trolleys[ev.cart_id].current_step = ev.step;
+    if (ev.type === "pick_correct") {
+      state.trolleys[ev.cart_id].correct_picks =
+        (state.trolleys[ev.cart_id].correct_picks || 0) + 1;
+    }
+    if (ev.type === "pick_wrong_bin" || ev.type === "pick_qty_mismatch") {
+      state.trolleys[ev.cart_id].errors =
+        (state.trolleys[ev.cart_id].errors || 0) + 1;
+    }
+    renderFleetCards();
+  }
+});
+
+socket.on("rerouting_event", ev => {
+  $("reroute-count").textContent =
+    +$("reroute-count").textContent + (ev.type === "reroute_triggered" ? 1 : 0);
+  const cls = ev.type === "reroute_triggered" || ev.type === "alternate_loaded" ? "ok"
+            : ev.type === "substitute_rejected" ? "err" : "warn";
+  logFleet(cls, "REROUTE", `[${ev.cart_id || "?"}] ${ev.message}`);
+});
+
+socket.on("authority_event", ev => {
+  if (state.trolleys[ev.cart_id]) {
+    state.trolleys[ev.cart_id].authority = ev.authority;
+  }
+  renderFleetCards();
+  logFleet(
+    ev.authority === "manager" ? "warn" : "ok",
+    "AUTHORITY",
+    `[${ev.cart_id}] → ${ev.authority.toUpperCase()}`
+  );
+});
+
+/* ---- initial load ---- */
+async function init() {
+  const r = await fetch("/api/fleet/trolleys");
+  const d = await r.json();
+  applyMode(d.mode);
+  for (const t of d.trolleys) {
+    state.trolleys[t.cart_id] = t;
+  }
+
+  // Load authority state
+  const ar   = await fetch("/api/fleet/authority");
+  const auth = await ar.json();
+  for (const [cid, authority] of Object.entries(auth)) {
+    if (state.trolleys[cid]) state.trolleys[cid].authority = authority;
+  }
+
+  renderFleetCards();
+  await loadConfigs();
+}
+
+init();
+</script>
+
+<style>
+/* ---- manager-specific styles ---- */
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.mode-opt {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: border-color 120ms;
+  gap: 2px;
+}
+.mode-opt:has(input:checked) {
+  border-color: var(--cat-yellow);
+  box-shadow: inset 3px 0 0 var(--cat-yellow);
+}
+.mode-opt input { display: none; }
+.mode-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-0);
+}
+.mode-desc { font-size: 11px; color: var(--text-2); }
+
+/* fleet cards */
+.fleet-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  transition: border-color 180ms;
+}
+.fleet-card.fleet-active {
+  border-color: var(--status-ok);
+  box-shadow: inset 3px 0 0 var(--status-ok);
+}
+.fc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.fc-id {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.fc-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  letter-spacing: .1em;
+}
+.fc-status.accent-ok  { background: rgba(61,220,132,.12); color: var(--status-ok); }
+.fc-status.accent-warn{ background: rgba(255,174,  0,.12); color: var(--status-warn); }
+.fc-status.accent-err { background: rgba(255, 64, 64,.12); color: var(--status-err); }
+.fc-config {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fc-step {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+.fc-actions { display: flex; gap: 6px; }
+
+/* config rows */
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  margin-bottom: 8px;
+  transition: border-color 120ms;
+}
+.config-row:hover { border-color: var(--cat-yellow-dim); }
+
+/* authority toggle switch */
+.fc-authority {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.auth-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  color: var(--text-2);
+  transition: color 200ms;
+  user-select: none;
+  flex: 1;
+}
+.auth-label-right { text-align: right; }
+.auth-label.auth-label-active { color: var(--text-0); }
+.auth-toggle {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  background: rgba(255,64,64,.18);
+  border: 1px solid rgba(255,64,64,.45);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 220ms, border-color 220ms;
+  flex-shrink: 0;
+}
+.auth-toggle.auth-toggle-opr {
+  background: rgba(61,220,132,.18);
+  border-color: rgba(61,220,132,.45);
+}
+.auth-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--status-err);
+  transition: left 220ms, background 220ms;
+}
+.auth-toggle.auth-toggle-opr .auth-thumb {
+  left: 20px;
+  background: var(--status-ok);
+}
+</style>
+
+</body>
+</html>

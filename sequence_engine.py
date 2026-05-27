@@ -97,9 +97,11 @@ class SequenceEngine:
     # If operator hasn't picked for this long, flag as stuck
     STUCK_THRESHOLD_SEC = 30.0
 
-    def __init__(self, hardware, on_event: Callable[[EventType, dict], None]):
+    def __init__(self, hardware, on_event: Callable[[EventType, dict], None],
+                 cart_id: str = ""):
         self.hw = hardware
         self._on_event = on_event
+        self.cart_id = cart_id
         self.state = EngineState()
         self.config: Optional[dict] = None
         self._lock = Lock()
@@ -356,6 +358,7 @@ class SequenceEngine:
         payload_with_meta = {
             "type": event_type.value,
             "ts": time.time(),
+            "cart_id": self.cart_id,
             **payload
         }
         # also log to event history

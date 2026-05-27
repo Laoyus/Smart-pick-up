@@ -14,7 +14,11 @@
   <div class="logo">CAT<span style="color:#333;font-size:18px;margin-left:6px;letter-spacing:0.12em;">SMART PICK</span></div>
   <div class="divider"></div>
   <div class="subtitle">Supervisor Dashboard</div>
+  <div style="margin-left:12px;">
+    <span class="mode-badge" id="mode-badge">STANDALONE</span>
+  </div>
   <div class="nav">
+    <a href="/manager">Manager</a>
     <a href="/">Operator</a>
     <a href="/supervisor" class="active">Supervisor</a>
   </div>
@@ -22,10 +26,15 @@
 
 <div style="height:calc(100vh - 56px);overflow-y:auto;">
 
+  <!-- Metric row -->
   <div class="metric-grid">
     <div class="metric">
       <div class="label">Active Variant</div>
-      <div class="value" id="m-variant" style="font-size:22px;">—</div>
+      <div class="value" id="m-variant" style="font-size:20px;line-height:1.3;">—</div>
+    </div>
+    <div class="metric" id="m-trolley-card">
+      <div class="label">Active Trolley</div>
+      <div class="value" id="m-trolley" style="font-size:22px;">—</div>
     </div>
     <div class="metric accent-ok">
       <div class="label">Correct Picks</div>
@@ -39,26 +48,79 @@
       <div class="label">Progress</div>
       <div class="value" id="m-progress">0<span class="unit">/ 0</span></div>
     </div>
+    <div class="metric" id="m-reroute-card">
+      <div class="label">Reroutes</div>
+      <div class="value" id="m-reroutes" style="font-size:40px;">0</div>
+    </div>
   </div>
 
+  <!-- Linked mode info bar (hidden in standalone) -->
+  <div id="linked-info-bar" style="display:none;padding:10px 24px;background:rgba(255,174,0,.06);
+       border-top:1px solid rgba(255,174,0,.2);border-bottom:1px solid rgba(255,174,0,.2);">
+    <div style="display:flex;gap:24px;align-items:center;">
+      <div>
+        <span style="font-family:var(--font-display);font-size:10px;letter-spacing:.15em;
+              color:var(--status-warn);text-transform:uppercase;">Linked Mode</span>
+        <span id="lb-trolley-group" style="font-family:var(--font-mono);font-size:12px;
+              color:var(--text-1);margin-left:12px;"></span>
+      </div>
+      <div>
+        <span style="font-family:var(--font-display);font-size:10px;letter-spacing:.15em;
+              color:var(--text-2);text-transform:uppercase;">Phase</span>
+        <span id="lb-phase" style="font-family:var(--font-mono);font-size:14px;
+              color:var(--text-0);margin-left:8px;">—</span>
+      </div>
+      <div>
+        <span style="font-family:var(--font-display);font-size:10px;letter-spacing:.15em;
+              color:var(--text-2);text-transform:uppercase;">Active Cart</span>
+        <span id="lb-active-cart" style="font-family:var(--font-display);font-size:14px;
+              font-weight:700;color:var(--status-ok);margin-left:8px;letter-spacing:.06em;">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sequence timeline -->
   <div class="dash-section-title">Pick Sequence Timeline</div>
   <div class="sequence-track" id="seq-track"></div>
 
+  <!-- Bin inventory (all trolleys) -->
   <div class="dash-section-title">Bin Inventory</div>
-  <div id="inventory-grid" style="padding:12px 24px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;"></div>
+  <div id="inventory-grid"
+       style="padding:12px 24px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+  </div>
 
+  <!-- Rerouting events section -->
+  <div class="dash-section-title" style="color:var(--status-ok);">◈ Adaptive Rerouting Log</div>
+  <div class="event-log" id="reroute-log"
+       style="max-height:180px;padding:12px 24px 16px;border-bottom:1px solid var(--line);">
+    <div class="entry info" style="border-left-color:var(--text-2);">
+      <span class="ts">—</span>
+      <span class="kind">REROUTE</span>No rerouting events yet
+    </div>
+  </div>
+
+  <!-- General event log -->
   <div class="dash-section-title">Recent Events</div>
-  <div class="event-log" id="sup-event-log" style="max-height:280px;padding: 12px 24px 24px;"></div>
+  <div class="event-log" id="sup-event-log" style="max-height:280px;padding:12px 24px 24px;"></div>
 
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 const socket = io();
+const $ = id => document.getElementById(id);
 
-const state = { bins: [], sequence: [], completedSteps: new Set(), activeStep: null };
-
-const $ = (id) => document.getElementById(id);
+const state = {
+  bins: {},         // cart_id → bins[]   (or flat bins[] for standalone)
+  sequence: [],
+  completedSteps: new Set(),
+  activeStep: null,
+  mode: "standalone",
+  activeTrolley: null,
+  linkedPhase: 0,
+  totalPhases: 0,
+  trolleyGroup: [],
+};
 
 function fmtTs(ms) {
   const d = new Date(ms);
@@ -66,40 +128,77 @@ function fmtTs(ms) {
     .map(n => String(n).padStart(2, "0")).join(":");
 }
 
+/* ---- sequence timeline ---- */
 function renderSequence() {
   const el = $("seq-track");
   el.innerHTML = "";
   for (const s of state.sequence) {
     const node = document.createElement("div");
-    const cls = state.completedSteps.has(s.step) ? "done"
-              : (state.activeStep === s.step ? "active" : "");
-    node.className = "seq-node " + cls;
-    const bin = state.bins.find(b => b.bin_id === s.bin_id);
+    const isDone   = state.completedSteps.has(s.step);
+    const isActive = state.activeStep === s.step;
+    node.className = "seq-node " + (isDone ? "done" : isActive ? "active" : "");
+
+    // find part name from whichever bins set we have
+    const cartId = s.trolley_id;
+    let bin = null;
+    if (cartId && state.bins[cartId]) {
+      bin = state.bins[cartId].find(b => b.bin_id === s.bin_id);
+    } else if (state.bins["_flat"]) {
+      bin = state.bins["_flat"].find(b => b.bin_id === s.bin_id);
+    }
+
+    const trolleyTag = cartId
+      ? `<span style="font-family:var(--font-mono);font-size:9px;
+           color:${cartId === "SMALL_A01" ? "var(--cat-yellow)" : "var(--status-ok)"};
+           letter-spacing:.05em;">${cartId}</span> · `
+      : "";
+
     node.innerHTML = `
-      <div class="st-num">STEP ${s.step} · BIN ${s.bin_id}</div>
+      <div class="st-num">${trolleyTag}STEP ${s.step} · BIN ${s.bin_id}</div>
       <div class="st-text">${s.qty}× ${bin ? bin.part_name.slice(0,18) : ""}</div>`;
     el.appendChild(node);
   }
 }
 
+/* ---- inventory grid ---- */
 function renderInventory() {
   const el = $("inventory-grid");
   el.innerHTML = "";
-  for (const b of state.bins) {
-    const card = document.createElement("div");
-    card.className = "metric";
-    card.style.borderLeftColor = "var(--cat-yellow)";
-    card.innerHTML = `
-      <div class="label">BIN ${b.bin_id} · ${b.part_number}</div>
-      <div class="value" style="font-size:20px;">${b.part_name}</div>
-      <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-2);margin-top:6px;">
-        Qty: <span id="inv-${b.bin_id}" style="color:var(--text-0);">${b.initial_qty}</span> / ${b.initial_qty}
-        · ${b.unit_weight_g}g each
-      </div>`;
-    el.appendChild(card);
+
+  function addBins(bins, cartId) {
+    for (const b of bins) {
+      const card = document.createElement("div");
+      card.className = "metric";
+      card.style.borderLeftColor =
+        cartId === "LARGE_A01" ? "var(--status-ok)" : "var(--cat-yellow)";
+      card.innerHTML = `
+        <div class="label">${cartId ? cartId + " · " : ""}BIN ${b.bin_id} · ${b.part_number}</div>
+        <div class="value" style="font-size:16px;">${b.part_name}</div>
+        <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-2);margin-top:6px;">
+          Qty: <span id="inv-${cartId||""}-${b.bin_id}"
+            style="color:var(--text-0);">${b.initial_qty}</span> / ${b.initial_qty}
+          · ${b.unit_weight_g}g each
+        </div>`;
+      el.appendChild(card);
+    }
+  }
+
+  if (Object.keys(state.bins).includes("_flat")) {
+    addBins(state.bins["_flat"], "");
+  } else {
+    for (const [cid, bins] of Object.entries(state.bins)) {
+      addBins(bins, cid);
+    }
   }
 }
 
+function updateInventoryQty(cartId, binId, remaining) {
+  const key = cartId ? `${cartId}-${binId}` : `${binId}`;
+  const el = document.getElementById(`inv-${key}`);
+  if (el) el.textContent = remaining;
+}
+
+/* ---- event logging ---- */
 function logEvent(cls, kind, msg) {
   const line = document.createElement("div");
   line.className = `entry ${cls}`;
@@ -109,56 +208,164 @@ function logEvent(cls, kind, msg) {
   log.scrollTop = log.scrollHeight;
 }
 
-socket.on("engine_event", (ev) => {
+function logReroute(cls, kind, msg) {
+  // Clear placeholder on first real reroute event
+  const log = $("reroute-log");
+  if (log.querySelector(".entry.info")) log.innerHTML = "";
+  const line = document.createElement("div");
+  line.className = `entry ${cls}`;
+  line.innerHTML = `<span class="ts">${fmtTs(Date.now())}</span><span class="kind">${kind}</span>${msg}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+/* ---- coordinator events ---- */
+socket.on("coordinator_event", ev => {
   switch (ev.type) {
-    case "variant_loaded":
-      state.bins = ev.bins;
-      state.sequence = ev.sequence;
+    case "mode_changed":
+      state.mode = ev.mode;
+      $("mode-badge").textContent = ev.mode.toUpperCase();
+      $("linked-info-bar").style.display = ev.mode === "linked" ? "flex" : "none";
+      break;
+    case "trolley_status":
+      if (ev.is_active) {
+        state.activeTrolley = ev.cart_id;
+        $("m-trolley").textContent = ev.cart_id;
+      }
+      break;
+    case "trolley_activated":
+      state.linkedPhase  = ev.phase;
+      state.totalPhases  = ev.total_phases;
+      state.activeTrolley = ev.cart_id;
+      $("lb-phase").textContent = `${ev.phase} / ${ev.total_phases}`;
+      $("lb-active-cart").textContent = ev.cart_id;
+      $("m-trolley").textContent = ev.cart_id;
+      logEvent("info", "PHASE",
+        `${ev.cart_id} activated — Phase ${ev.phase}/${ev.total_phases} · Steps ${ev.first_step}–${ev.last_step}`);
+      break;
+    case "linked_started":
+      state.sequence     = ev.sequence || [];
+      state.trolleyGroup = ev.trolley_group || [];
+      state.totalPhases  = ev.total_phases;
       state.completedSteps = new Set();
-      state.activeStep = null;
-      $("m-variant").textContent = ev.variant_id;
-      $("m-progress").innerHTML = `0<span class="unit">/ ${ev.sequence.length}</span>`;
-      $("m-correct").textContent = "0";
-      $("m-errors").textContent = "0";
+      state.activeStep   = null;
+
+      // Store bins per trolley
+      state.bins = {};
+      if (ev.trolleys) {
+        for (const [cid, tcfg] of Object.entries(ev.trolleys)) {
+          state.bins[cid] = tcfg.bins || [];
+        }
+      }
+
+      $("m-variant").textContent  = ev.variant_id;
+      $("m-progress").innerHTML   = `0<span class="unit">/ ${state.sequence.length}</span>`;
+      $("m-correct").textContent  = "0";
+      $("m-errors").textContent   = "0";
+      $("lb-trolley-group").textContent = state.trolleyGroup.join(" + ");
+      $("lb-phase").textContent   = `— / ${ev.total_phases}`;
+      $("linked-info-bar").style.display = "flex";
       renderSequence();
       renderInventory();
       $("sup-event-log").innerHTML = "";
-      logEvent("info", "VARIANT", `${ev.variant_id} loaded`);
+      logEvent("ok", "LINKED", `${ev.variant_id} started — ${ev.total_steps} steps · ${ev.total_phases} phases`);
       break;
+    case "linked_complete":
+      logEvent("ok", "COMPLETE",
+        `${ev.variant_id} · ${ev.total_time_sec}s / ${ev.target_time_sec}s · ${ev.on_target ? "ON TARGET" : "OVER TARGET"}`);
+      break;
+  }
+});
+
+/* ---- engine events ---- */
+socket.on("engine_event", ev => {
+  const tag  = ev.cart_id ? `[${ev.cart_id}] ` : "";
+  const cid  = ev.cart_id || "";
+
+  switch (ev.type) {
+    case "variant_loaded":
+      // Standalone variant loaded on one trolley
+      if (ev.bins) {
+        if (cid) state.bins[cid] = ev.bins;
+        else     state.bins["_flat"] = ev.bins;
+      }
+      if (ev.sequence) state.sequence = ev.sequence;
+      state.completedSteps = new Set();
+      state.activeStep = null;
+      $("m-variant").textContent  = ev.variant_id;
+      $("m-progress").innerHTML   = `0<span class="unit">/ ${(ev.sequence||[]).length}</span>`;
+      $("m-correct").textContent  = "0";
+      $("m-errors").textContent   = "0";
+      renderSequence();
+      renderInventory();
+      $("sup-event-log").innerHTML = "";
+      logEvent("info", "LOAD", `${tag}${ev.variant_id} loaded`);
+      break;
+
     case "step_started":
       state.activeStep = ev.step;
       renderSequence();
-      logEvent("info", "STEP", `Step ${ev.step}: ${ev.qty}× ${ev.part_name}`);
+      logEvent("info", "STEP", `${tag}Step ${ev.step}: ${ev.qty}× ${ev.part_name}`);
       break;
+
     case "pick_correct":
       state.completedSteps.add(ev.step);
       const done = state.completedSteps.size;
-      $("m-progress").innerHTML = `${done}<span class="unit">/ ${state.sequence.length}</span>`;
+      $("m-progress").innerHTML =
+        `${done}<span class="unit">/ ${state.sequence.length}</span>`;
       $("m-correct").textContent = +$("m-correct").textContent + 1;
-      // update inventory
-      const invEl = $(`inv-${ev.bin_id}`);
-      if (invEl) invEl.textContent = ev.remaining;
-      logEvent("ok", "PICK OK", `bin ${ev.bin_id} · ${ev.qty_picked} picked · ${ev.remaining} remaining`);
+      updateInventoryQty(cid, ev.bin_id, ev.remaining);
       renderSequence();
+      logEvent("ok", "PICK OK",
+        `${tag}bin ${ev.bin_id} · ${ev.qty_picked} picked · ${ev.remaining} remaining`);
       break;
+
     case "pick_wrong_bin":
       $("m-errors").textContent = +$("m-errors").textContent + 1;
-      logEvent("err", "WRONG BIN", ev.message);
+      logEvent("err", "WRONG BIN", `${tag}${ev.message}`);
       break;
+
     case "pick_qty_mismatch":
       $("m-errors").textContent = +$("m-errors").textContent + 1;
-      logEvent("err", "QTY ERROR", ev.message);
+      logEvent("err", "QTY ERROR", `${tag}${ev.message}`);
       break;
+
     case "ghost_ir":
-      logEvent("warn", "GHOST IR", ev.message);
+      logEvent("warn", "GHOST IR", `${tag}${ev.message}`);
       break;
+
     case "operator_stuck":
-      logEvent("warn", "STUCK", ev.message);
+      logEvent("warn", "STUCK", `${tag}${ev.message}`);
       break;
+
     case "variant_complete":
       logEvent("ok", "COMPLETE",
-        `${ev.variant_id} · ${ev.total_time_sec}s (target ${ev.target_time_sec}s) · ${ev.errors} errors`);
+        `${tag}${ev.variant_id} · ${ev.total_time_sec}s (target ${ev.target_time_sec}s) · ${ev.errors} errors`);
       break;
+  }
+});
+
+/* ---- rerouting events ---- */
+socket.on("rerouting_event", ev => {
+  const cls = {
+    reroute_triggered: "ok",
+    alternate_loaded:  "ok",
+    substitute_rejected: "err",
+    reroute_error: "err",
+  }[ev.type] || "warn";
+
+  const kindMap = {
+    reroute_triggered:   "REROUTE →",
+    alternate_loaded:    "ALT LOADED",
+    substitute_rejected: "REJECTED",
+    reroute_error:       "ERROR",
+  };
+
+  logReroute(cls, kindMap[ev.type] || "REROUTE", ev.message);
+  logEvent(cls, "REROUTE", `[${ev.cart_id}] ${ev.message}`);
+
+  if (ev.type === "reroute_triggered") {
+    $("m-reroutes").textContent = +$("m-reroutes").textContent + 1;
   }
 });
 </script>

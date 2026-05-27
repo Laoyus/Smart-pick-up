@@ -1,0 +1,212 @@
+{
+  "variant_id": "CAT-EXC-LINKED-01-ALT",
+  "variant_name": "Excavator Arm — Grade 8.8 Bolt Alternate",
+  "description": "Alternate path for linked excavator sequence using Grade 8.8 bolts (lighter spec, 38g vs 42.5g). Triggered automatically when Grade 8.8 bolt is substituted for Grade 10.9.",
+  "operating_mode": "linked",
+  "trolley_group": ["SMALL_A01", "LARGE_A01"],
+
+  "trolleys": {
+    "SMALL_A01": {
+      "cart_id": "SMALL_A01",
+      "type": "small_parts",
+      "bins": [
+        {
+          "bin_id": 1,
+          "part_number": "8T-4119",
+          "part_name": "Bolt M10x40 Grade 8.8",
+          "unit_weight_g": 38.0,
+          "weight_tolerance_g": 3.0,
+          "initial_qty": 24,
+          "led_position": 0
+        },
+        {
+          "bin_id": 2,
+          "part_number": "2H-3719",
+          "part_name": "Washer Flat M10",
+          "unit_weight_g": 4.8,
+          "weight_tolerance_g": 1.0,
+          "initial_qty": 48,
+          "led_position": 1
+        },
+        {
+          "bin_id": 3,
+          "part_number": "5P-1076",
+          "part_name": "Hex Nut M10 Nylock",
+          "unit_weight_g": 11.2,
+          "weight_tolerance_g": 1.5,
+          "initial_qty": 24,
+          "led_position": 2
+        },
+        {
+          "bin_id": 4,
+          "part_number": "9X-8256",
+          "part_name": "Spring Washer M10",
+          "unit_weight_g": 3.4,
+          "weight_tolerance_g": 0.8,
+          "initial_qty": 24,
+          "led_position": 3
+        },
+        {
+          "bin_id": 5,
+          "part_number": "4T-9182",
+          "part_name": "Arm Mounting Bracket LH",
+          "unit_weight_g": 248.0,
+          "weight_tolerance_g": 7.0,
+          "initial_qty": 6,
+          "led_position": 4
+        },
+        {
+          "bin_id": 6,
+          "part_number": "4T-9183",
+          "part_name": "Arm Mounting Bracket RH",
+          "unit_weight_g": 248.0,
+          "weight_tolerance_g": 7.0,
+          "initial_qty": 6,
+          "led_position": 5
+        }
+      ]
+    },
+    "LARGE_A01": {
+      "cart_id": "LARGE_A01",
+      "type": "large_parts",
+      "bins": [
+        {
+          "bin_id": 1,
+          "part_number": "9R-4508",
+          "part_name": "Boom Cylinder 90mm",
+          "unit_weight_g": 3800.0,
+          "weight_tolerance_g": 120.0,
+          "initial_qty": 4,
+          "led_position": 0
+        },
+        {
+          "bin_id": 2,
+          "part_number": "9R-4412",
+          "part_name": "Bucket Cylinder 70mm",
+          "unit_weight_g": 2900.0,
+          "weight_tolerance_g": 90.0,
+          "initial_qty": 4,
+          "led_position": 1
+        },
+        {
+          "bin_id": 3,
+          "part_number": "6V-3965",
+          "part_name": "Rod Seal — Boom",
+          "unit_weight_g": 155.0,
+          "weight_tolerance_g": 10.0,
+          "initial_qty": 8,
+          "led_position": 2
+        },
+        {
+          "bin_id": 4,
+          "part_number": "6V-3966",
+          "part_name": "Rod Seal — Bucket",
+          "unit_weight_g": 128.0,
+          "weight_tolerance_g": 10.0,
+          "initial_qty": 8,
+          "led_position": 3
+        },
+        {
+          "bin_id": 5,
+          "part_number": "7X-1844",
+          "part_name": "Cylinder End Cap",
+          "unit_weight_g": 395.0,
+          "weight_tolerance_g": 18.0,
+          "initial_qty": 8,
+          "led_position": 4
+        }
+      ]
+    }
+  },
+
+  "pick_sequence": [
+    {
+      "step": 1,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 5,
+      "qty": 1,
+      "instruction": "[ALT SPEC] Mount LH arm bracket on fixture — Grade 8.8 fasteners"
+    },
+    {
+      "step": 2,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 6,
+      "qty": 1,
+      "instruction": "[ALT SPEC] Mount RH arm bracket on fixture"
+    },
+    {
+      "step": 3,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 1,
+      "qty": 4,
+      "instruction": "[ALT SPEC] Insert 4 Grade 8.8 bolts — torque limit 38 Nm"
+    },
+    {
+      "step": 4,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 1,
+      "qty": 1,
+      "instruction": "Lower boom cylinder into mounting brackets"
+    },
+    {
+      "step": 5,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 2,
+      "qty": 1,
+      "instruction": "Lower bucket cylinder into mounting brackets"
+    },
+    {
+      "step": 6,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 5,
+      "qty": 2,
+      "instruction": "Fit end caps on both cylinder rod ends"
+    },
+    {
+      "step": 7,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 2,
+      "qty": 4,
+      "instruction": "[ALT SPEC] Add flat washers to all 4 bolts"
+    },
+    {
+      "step": 8,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 4,
+      "qty": 4,
+      "instruction": "[ALT SPEC] Add spring washers"
+    },
+    {
+      "step": 9,
+      "trolley_id": "SMALL_A01",
+      "bin_id": 3,
+      "qty": 4,
+      "instruction": "[ALT SPEC] Thread nylock nuts — torque to 38 Nm (Grade 8.8 limit)"
+    },
+    {
+      "step": 10,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 3,
+      "qty": 2,
+      "instruction": "Install rod seals on boom cylinder"
+    },
+    {
+      "step": 11,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 4,
+      "qty": 2,
+      "instruction": "Install rod seals on bucket cylinder"
+    },
+    {
+      "step": 12,
+      "trolley_id": "LARGE_A01",
+      "bin_id": 5,
+      "qty": 2,
+      "instruction": "Torque end caps — QC sign-off on Grade 8.8 sub-assembly"
+    }
+  ],
+
+  "substitution_rules": {},
+
+  "cycle_time_target_sec": 190
+}

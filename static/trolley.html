@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Smart Assistive Part Pick — Operator View</title>
+  <title>Smart Assistive Part Pick — Operator HMI</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,14 +14,21 @@
   <div class="logo">CAT<span style="color:#333;font-size:18px;margin-left:6px;letter-spacing:0.12em;">SMART PICK</span></div>
   <div class="divider"></div>
   <div class="subtitle">Assembly Line — Operator HMI</div>
+  <div style="margin-left:12px;">
+    <span class="mode-badge" id="mode-badge">STANDALONE</span>
+  </div>
   <div class="nav">
+    <a href="/manager">Manager</a>
     <a href="/" class="active">Operator</a>
     <a href="/supervisor">Supervisor</a>
   </div>
 </div>
 
 <div class="layout">
-  <!-- LEFT: variant selector + controls -->
+
+  <!-- ======================================================
+       LEFT — controls + fault injection
+  ====================================================== -->
   <div class="panel">
     <div class="panel-header">
       <span>Variant Configuration</span>
@@ -29,32 +36,57 @@
     </div>
     <div class="panel-body">
       <p style="color:var(--text-2);font-size:12px;margin-bottom:12px;">
-        Swap variants by loading a different JSON config — no hardware changes.
+        Load a variant to either trolley. Use <a href="/manager"
+          style="color:var(--cat-yellow);">Fleet Manager</a> for linked sequences.
       </p>
+
+      <div style="font-family:var(--font-display);font-size:10px;letter-spacing:.15em;color:var(--text-2);
+                  text-transform:uppercase;margin-bottom:6px;">Trolley target</div>
+      <select id="trolley-target"
+        style="width:100%;background:var(--bg-2);border:1px solid var(--line);color:var(--text-0);
+               padding:8px;font-family:var(--font-display);font-size:12px;letter-spacing:.08em;
+               text-transform:uppercase;margin-bottom:8px;">
+        <option value="SMALL_A01">SMALL_A01 — Small Parts</option>
+        <option value="LARGE_A01">LARGE_A01 — Large Parts</option>
+      </select>
+
+      <div id="authority-status" class="authority-badge authority-locked">🔒 MANAGER-CONTROLLED</div>
+
       <div id="variant-list"></div>
 
       <div class="btn-row" style="margin-top:16px;">
         <button id="btn-start" class="btn primary full" disabled>▶ Start Sequence</button>
       </div>
       <div class="btn-row" style="margin-top:8px;">
-        <button id="btn-reset" class="btn ghost full">↺ Reset</button>
+        <button id="btn-reset" class="btn ghost full">↺ Reset Active Trolley</button>
       </div>
     </div>
 
     <div class="fault-panel">
       <div class="title">◉ Fault Injection</div>
-      <p>Inject edge cases to demonstrate robustness:</p>
+      <p>Targets the currently active trolley step:</p>
       <div class="btn-row">
-        <button id="btn-ir-only" class="btn" style="flex:1;">Ghost IR</button>
-        <button id="btn-wrong-bin" class="btn" style="flex:1;">Wrong Bin</button>
+        <button id="btn-ir-only"   class="btn" style="flex:1;">Ghost IR</button>
+        <button id="btn-wrong-bin" class="btn" style="flex:1;">Wrong Part</button>
       </div>
       <div class="btn-row" style="margin-top:6px;">
         <button id="btn-wrong-qty" class="btn full">Wrong Quantity</button>
       </div>
     </div>
+
+    <!-- Active trolley indicator -->
+    <div style="padding:12px 18px;border-top:1px solid var(--line);">
+      <div style="font-family:var(--font-display);font-size:10px;letter-spacing:.15em;color:var(--text-2);
+                  text-transform:uppercase;margin-bottom:6px;">Active Trolley</div>
+      <div id="active-trolley-badge" style="font-family:var(--font-display);font-size:18px;
+           font-weight:700;letter-spacing:.06em;color:var(--status-idle);">—</div>
+      <div id="active-phase-label" style="font-size:11px;color:var(--text-2);margin-top:2px;"></div>
+    </div>
   </div>
 
-  <!-- CENTER: the trolley stage -->
+  <!-- ======================================================
+       CENTER — dual-trolley stage
+  ====================================================== -->
   <div class="stage">
     <div class="stage-header">
       <div class="stage-title" id="variant-title">No variant loaded</div>
@@ -65,16 +97,63 @@
       </div>
     </div>
 
-    <div id="step-card-wrap" style="padding: 0 24px;"></div>
+    <div id="step-card-wrap" style="padding:0 24px;"></div>
 
-    <div class="trolley-wrap">
-      <div class="trolley">
-        <div class="bins" id="bins"></div>
+    <!-- Rerouting banner (hidden until triggered) -->
+    <div id="reroute-banner" style="display:none;margin:0 24px 10px;padding:10px 14px;
+         background:rgba(61,220,132,.08);border:1px solid var(--status-ok);
+         border-left:4px solid var(--status-ok);">
+      <div style="font-family:var(--font-display);font-size:11px;letter-spacing:.12em;
+                  color:var(--status-ok);text-transform:uppercase;margin-bottom:3px;">
+        ◈ Path Rerouted
+      </div>
+      <div id="reroute-msg" style="font-size:12px;color:var(--text-1);"></div>
+    </div>
+
+    <!-- Dual-trolley visualization -->
+    <div class="trolley-wrap" style="flex:1;overflow-y:auto;padding:16px 24px;gap:16px;
+                                     display:flex;flex-direction:column;">
+      <!-- SMALL_A01 -->
+      <div class="trolley-section" id="section-SMALL_A01">
+        <div class="trolley-section-label">
+          <span class="tsl-id">SMALL_A01</span>
+          <span class="tsl-type">Small Parts · 6 Bins</span>
+          <span class="tsl-active-pill" id="pill-SMALL_A01" style="display:none;">ACTIVE</span>
+        </div>
+        <div class="trolley" id="trolley-SMALL_A01" data-cart="SMALL_A01">
+          <div class="bins" id="bins-SMALL_A01"
+               style="grid-template-columns:repeat(3,1fr);">
+            <div class="bin-placeholder" style="grid-column:1/-1;text-align:center;
+                 color:var(--text-2);font-size:12px;padding:20px;">
+              Load a variant to see bins
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LARGE_A01 -->
+      <div class="trolley-section" id="section-LARGE_A01">
+        <div class="trolley-section-label">
+          <span class="tsl-id">LARGE_A01</span>
+          <span class="tsl-type">Large Parts · 4-5 Bins</span>
+          <span class="tsl-active-pill" id="pill-LARGE_A01" style="display:none;">ACTIVE</span>
+        </div>
+        <div class="trolley" id="trolley-LARGE_A01" data-cart="LARGE_A01">
+          <div class="bins" id="bins-LARGE_A01"
+               style="grid-template-columns:repeat(3,1fr);">
+            <div class="bin-placeholder" style="grid-column:1/-1;text-align:center;
+                 color:var(--text-2);font-size:12px;padding:20px;">
+              Load a variant to see bins
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: event log -->
+  <!-- ======================================================
+       RIGHT — event log
+  ====================================================== -->
   <div class="panel">
     <div class="panel-header">
       <span>Event Stream</span>
@@ -82,10 +161,35 @@
     </div>
     <div class="event-log" id="event-log"></div>
   </div>
-</div>
+
+</div><!-- .layout -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <script src="/static/app.js"></script>
+
+<style>
+.authority-badge {
+  display: block;
+  padding: 7px 10px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  border: 1px solid;
+}
+.authority-locked {
+  color: var(--status-err);
+  border-color: rgba(255,64,64,.35);
+  background: rgba(255,64,64,.07);
+}
+.authority-unlocked {
+  color: var(--status-ok);
+  border-color: rgba(61,220,132,.35);
+  background: rgba(61,220,132,.07);
+}
+</style>
 
 </body>
 </html>

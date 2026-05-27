@@ -1,0 +1,84 @@
+{
+  "variant_id": "CAT-MOTOR-SM-01",
+  "variant_name": "Motor Sub-Assembly — Small Trolley",
+  "description": "Starter motor bracket kit for D6 dozer — small parts only (SMALL_A01)",
+  "operating_mode": "standalone",
+  "cart_id": "SMALL_A01",
+  "trolley": {
+    "trolley_id": "SMALL_A01",
+    "type": "small_parts",
+    "bin_count": 6
+  },
+  "bins": [
+    {
+      "bin_id": 1,
+      "part_number": "8T-4121",
+      "part_name": "Bolt M10x40 Grade 10.9",
+      "unit_weight_g": 42.5,
+      "weight_tolerance_g": 3.0,
+      "initial_qty": 24,
+      "led_position": 0
+    },
+    {
+      "bin_id": 2,
+      "part_number": "2H-3719",
+      "part_name": "Washer Flat M10",
+      "unit_weight_g": 4.8,
+      "weight_tolerance_g": 1.0,
+      "initial_qty": 48,
+      "led_position": 1
+    },
+    {
+      "bin_id": 3,
+      "part_number": "5P-1076",
+      "part_name": "Hex Nut M10 Nylock",
+      "unit_weight_g": 11.2,
+      "weight_tolerance_g": 1.5,
+      "initial_qty": 24,
+      "led_position": 2
+    },
+    {
+      "bin_id": 4,
+      "part_number": "9X-8256",
+      "part_name": "Spring Washer M10",
+      "unit_weight_g": 3.4,
+      "weight_tolerance_g": 0.8,
+      "initial_qty": 24,
+      "led_position": 3
+    },
+    {
+      "bin_id": 5,
+      "part_number": "3E-6204",
+      "part_name": "Motor Bracket LH",
+      "unit_weight_g": 312.0,
+      "weight_tolerance_g": 8.0,
+      "initial_qty": 8,
+      "led_position": 4
+    },
+    {
+      "bin_id": 6,
+      "part_number": "3E-6205",
+      "part_name": "Motor Bracket RH",
+      "unit_weight_g": 312.0,
+      "weight_tolerance_g": 8.0,
+      "initial_qty": 8,
+      "led_position": 5
+    }
+  ],
+  "pick_sequence": [
+    { "step": 1, "bin_id": 5, "qty": 1, "instruction": "Place LH motor bracket on fixture" },
+    { "step": 2, "bin_id": 6, "qty": 1, "instruction": "Place RH motor bracket on fixture" },
+    { "step": 3, "bin_id": 1, "qty": 4, "instruction": "Insert 4 bolts through bracket holes" },
+    { "step": 4, "bin_id": 2, "qty": 4, "instruction": "Add flat washers to each bolt" },
+    { "step": 5, "bin_id": 4, "qty": 4, "instruction": "Add spring washers" },
+    { "step": 6, "bin_id": 3, "qty": 4, "instruction": "Thread nylock nuts — hand tight" }
+  ],
+  "substitution_rules": {
+    "Bolt M10x40 Grade 10.9": {
+      "compatible_parts": ["Bolt M10x40 Grade 8.8"],
+      "alternate_variant": "standalone_small_motor_alt.json",
+      "display_message": "Grade 8.8 bolt approved for this sub-assembly — loading alternate spec"
+    }
+  },
+  "cycle_time_target_sec": 90
+}

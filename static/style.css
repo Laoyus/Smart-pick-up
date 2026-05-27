@@ -512,3 +512,127 @@ html, body {
   .layout { grid-template-columns: 320px 1fr 340px; }
   .bins { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==========================================================================
+   Round 3 additions
+   ========================================================================== */
+
+/* ---- topbar mode badge ---- */
+.mode-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  background: var(--cat-black);
+  color: var(--cat-yellow);
+  border: 1px solid var(--cat-black);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* ---- dual-trolley section wrappers ---- */
+.trolley-section {
+  width: 100%;
+}
+.trolley-section-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.tsl-id {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+.tsl-type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-2);
+}
+.tsl-active-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  background: rgba(61,220,132,0.15);
+  color: var(--status-ok);
+  border: 1px solid var(--status-ok);
+  text-transform: uppercase;
+  margin-left: auto;
+  animation: pill-pulse 1.4s ease-in-out infinite;
+}
+@keyframes pill-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* Trolley becomes visually active when its cart is driving a step */
+.trolley-active {
+  border-color: var(--status-ok) !important;
+  box-shadow: 0 0 0 1px rgba(61,220,132,.4), 0 0 24px rgba(61,220,132,.08) !important;
+}
+.trolley-section-active .tsl-id {
+  color: var(--status-ok);
+}
+
+/* Override the ::before pseudo-element for named trolleys */
+.trolley[data-cart="SMALL_A01"]::before {
+  content: "SMALL PARTS TROLLEY · SMALL_A01";
+}
+.trolley[data-cart="LARGE_A01"]::before {
+  content: "LARGE PARTS TROLLEY · LARGE_A01";
+}
+
+/* Smaller bin cards for large trolley (fewer bins, bigger parts) */
+#trolley-LARGE_A01 .bin {
+  min-height: 130px;
+}
+
+/* ---- metric grid 6-col in supervisor ---- */
+.metric-grid {
+  grid-template-columns: repeat(6, 1fr);
+}
+@media (max-width: 1400px) {
+  .metric-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---- sequence node trolley tag ---- */
+.seq-node[data-cart="LARGE_A01"] {
+  border-left: 3px solid var(--status-ok);
+}
+.seq-node[data-cart="SMALL_A01"] {
+  border-left: 3px solid var(--cat-yellow-dim);
+}
+
+/* ---- rerouting event entries ---- */
+.event-log .entry.reroute {
+  border-left-color: var(--status-ok);
+  background: rgba(61,220,132,0.04);
+}
+.event-log .entry.reroute .kind { color: var(--status-ok); }
+
+/* ---- linked info bar on supervisor ---- */
+#linked-info-bar {
+  display: none;
+  align-items: center;
+  gap: 0;
+}
+
+/* ---- trolley-wrap override for dual layout ---- */
+.trolley-wrap {
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* ---- nav link for manager ---- */
+.topbar .nav a[href="/manager"] {
+  border-color: var(--cat-yellow-dim);
+}
