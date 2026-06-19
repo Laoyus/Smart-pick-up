@@ -121,6 +121,12 @@ def make_fleet_blueprint(coordinator, rerouter, config_dir: str) -> Blueprint:
         if rerouter:
             rerouter.load_rules_from_config(config)
 
+        # Validate required fields before touching any trolley
+        missing = [k for k in ("variant_id", "variant_name", "bins", "pick_sequence")
+                   if k not in config]
+        if missing:
+            return jsonify({"error": f"config missing required fields: {missing}"}), 400
+
         targets = (
             list(coordinator.trolleys.keys())
             if cart_id == "all"
@@ -129,7 +135,12 @@ def make_fleet_blueprint(coordinator, rerouter, config_dir: str) -> Blueprint:
         for tid in targets:
             if tid not in coordinator.trolleys:
                 return jsonify({"error": f"unknown cart_id: {tid}"}), 404
-            coordinator.push_variant(tid, config)
+
+        try:
+            for tid in targets:
+                coordinator.push_variant(tid, config)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
 
         return jsonify({
             "ok":         True,

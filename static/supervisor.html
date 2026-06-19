@@ -298,7 +298,8 @@ socket.on("engine_event", ev => {
       $("m-errors").textContent   = "0";
       renderSequence();
       renderInventory();
-      $("sup-event-log").innerHTML = "";
+      // In linked mode keep the log across phase transitions; only clear on a fresh standalone load
+      if (state.mode !== "linked") $("sup-event-log").innerHTML = "";
       logEvent("info", "LOAD", `${tag}${ev.variant_id} loaded`);
       break;
 

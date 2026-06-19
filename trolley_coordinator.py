@@ -326,6 +326,13 @@ class TrolleyCoordinator:
             if len(inst.events) > 200:
                 inst.events = inst.events[-200:]
 
+        # Keep hardware in sync with current step so multi-part IR picks work
+        if event_type == EventType.STEP_STARTED:
+            hw = self.get_hardware(cart_id)
+            if hasattr(hw, "update_expected_qty"):
+                hw.update_expected_qty(payload.get("bin_id", 0),
+                                       payload.get("qty", 1))
+
         # Rerouting check on wrong-bin events
         if (event_type == EventType.PICK_WRONG_BIN
                 and self.rerouting_engine is not None):

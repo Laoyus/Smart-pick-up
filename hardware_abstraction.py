@@ -17,9 +17,14 @@ The sequence engine above this layer is completely unaware which backend
 is running. Same code ships to the prototype.
 """
 
+import os
 from abc import ABC, abstractmethod
 from typing import Callable, Dict
 import time
+
+# Set SIMULATION_MODE=false (any casing) to activate the Arduino serial backend.
+# Default is True so the simulation works without any hardware attached.
+SIMULATION_MODE: bool = os.getenv("SIMULATION_MODE", "true").lower() != "false"
 
 
 class HardwareInterface(ABC):
@@ -94,6 +99,12 @@ class MockHardware(HardwareInterface):
     def register_ir_callback(self, bin_id: int, callback: Callable[[int], None]) -> None:
         self._ir_callbacks[bin_id] = callback
 
+    def register_ir_clear_callback(self, bin_id: int, callback) -> None:
+        pass  # simulation: IR clear events don't occur in mock
+
+    def is_ir_triggered(self, bin_id: int) -> bool:
+        return False  # simulation: hand is never "in bin" between picks
+
     # ---- mock-only API: simulate operator actions from the UI ----
     def simulate_pick(self, bin_id: int, qty_picked: int, unit_weight_g: float,
                       noise_g: float = 0.0) -> None:
@@ -125,3 +136,29 @@ class MockHardware(HardwareInterface):
         self._weights.clear()
         self._tare.clear()
         self._ir_callbacks.clear()
+
+
+# ------------------------------------------------------------------ #
+# Factory — returns the right backend based on SIMULATION_MODE
+# ------------------------------------------------------------------ #
+
+def create_hardware(emit_fn=None, cart_id: str = "SMALL_A01"):
+    """
+    Return a HardwareInterface instance appropriate for the current mode.
+
+    Simulation mode (default, SIMULATION_MODE=true):
+        Returns MockHardware — all I/O is emulated and broadcast to the browser.
+
+    Hardware mode (SIMULATION_MODE=false):
+        Returns ArduinoHardware for SMALL_A01 (the trolley with physical sensors).
+        LARGE_A01 always gets MockHardware until a second Arduino arrives.
+
+    Set ARDUINO_PORT env var to override the default COM3 serial port.
+    """
+    if SIMULATION_MODE or cart_id == "LARGE_A01":
+        return MockHardware(emit_fn=emit_fn, cart_id=cart_id)
+
+    from arduino_hardware import ArduinoHardware
+    port = os.getenv("ARDUINO_PORT", "COM3")
+    print(f"[Hardware] Real-hardware mode — ArduinoHardware on {port} for {cart_id}")
+    return ArduinoHardware(port=port)

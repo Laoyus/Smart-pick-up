@@ -14,6 +14,12 @@ Round 3 additions over Round 2:
 
 Round 2 API endpoints remain fully functional (they target SMALL_A01 by default).
 
+ESP32 WiFi Bridge (finale addition):
+  • /ws_esp  →  WebSocket endpoint for ESP32-B relay.
+                Receives Mega serial events wrapped in >t...<  framing.
+                Feeds them into MockHardware (same as sim buttons).
+                No other code changes needed — engine/HMI unchanged.
+
 Run:
     python app.py
 
@@ -26,18 +32,23 @@ Open:
 import os
 import json
 from flask import Flask, request, jsonify, send_from_directory
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
+from flask_sock import Sock
 
-from hardware_abstraction import MockHardware
+from hardware_abstraction import create_hardware
 from trolley_coordinator import TrolleyCoordinator
 from rerouting_engine import ReroutingEngine
 from fleet_api import make_fleet_blueprint
 
 
-app = Flask(__name__, static_folder="static", static_url_path="/static")
+app    = Flask(__name__, static_folder="static", static_url_path="/static")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+sock   = Sock(app)   # WebSocket support for ESP32 bridge
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "configs")
+
+# Holds the live ESP32-B WebSocket connection (one at a time)
+esp_connection = None
 
 
 # ======================================================================
@@ -54,9 +65,9 @@ def _socketio_emit(event_name: str, payload: dict) -> None:
     socketio.emit(event_name, payload)
 
 
-# Two independent hardware instances — one per physical trolley
-hw_small = MockHardware(emit_fn=broadcast_hw, cart_id="SMALL_A01")
-hw_large = MockHardware(emit_fn=broadcast_hw, cart_id="LARGE_A01")
+# Two independent hardware instances — one per physical trolley.
+hw_small = create_hardware(emit_fn=broadcast_hw, cart_id="SMALL_A01")
+hw_large = create_hardware(emit_fn=broadcast_hw, cart_id="LARGE_A01")
 
 # Coordinator owns both engines
 coordinator = TrolleyCoordinator(emit_fn=_socketio_emit, config_dir=CONFIG_DIR)
@@ -70,6 +81,18 @@ rerouter = ReroutingEngine(
     config_dir=CONFIG_DIR,
 )
 coordinator.rerouting_engine = rerouter
+
+# Wire emergency stop button (physical button on SMALL_A01 trolley)
+def _on_emergency_stop():
+    coordinator.reset_all()
+    socketio.emit("coordinator_event", {
+        "type":    "emergency_stop",
+        "message": "Hardware emergency stop button pressed — all trolleys reset",
+    })
+    print("[App] EMERGENCY STOP — all trolleys reset.")
+
+if hasattr(hw_small, "register_emergency_callback"):
+    hw_small.register_emergency_callback(_on_emergency_stop)
 
 # Round 2 backwards-compat aliases (always refer to SMALL_A01)
 hardware = hw_small
@@ -112,7 +135,6 @@ def list_variants():
         try:
             with open(os.path.join(CONFIG_DIR, fn)) as f:
                 cfg = json.load(f)
-            # Only expose configs that have a flat bins list (standalone-compatible)
             if "bins" in cfg or "trolleys" not in cfg:
                 out.append({
                     "filename":       fn,
@@ -272,21 +294,170 @@ def set_authority():
 
 
 # ======================================================================
+# ESP32 WebSocket bridge  —  real hardware events from Mega via ESP32-B
+# ======================================================================
+#
+# Protocol (defined by teammate's ESP32-B sketch):
+#
+#   Mega → ESP32-B UART → WiFi → ws://192.168.4.3:5000/ws_esp
+#
+#   Incoming frame:   >tPICK:2:3<
+#   After stripping:  PICK:2:3
+#
+# Supported Mega serial events:
+#   IR:bin              hand detected entering bin (IR sensor tripped)
+#   LC:bin:grams        raw load cell reading in grams
+#   PICK:bin:remaining  confirmed pick (remaining count after pick)
+#   WRONG:bin           wrong bin picked
+#   ASSEMBLY_DONE       all steps in sequence completed
+#
+# These map directly into MockHardware.simulate_ir_only() and
+# MockHardware.simulate_pick() — same methods the sim buttons use.
+# The sequence engine and browser HMI are completely unaware of the
+# difference between a simulated and a real hardware event.
+# ======================================================================
+
+@sock.route("/ws_esp")
+def esp_ws(ws):
+    """
+    ESP32-B connects here on startup and holds the connection open.
+    Every Mega serial line arrives as a WebSocket text frame.
+    """
+    global esp_connection
+    esp_connection = ws
+    print("[ESP32] Connected — real hardware bridge active")
+
+    # Notify browser that physical hardware is online
+    socketio.emit("coordinator_event", {
+        "type":    "hardware_connected",
+        "message": "ESP32 bridge connected — Arduino Mega online",
+    })
+
+    eng = coordinator.get_engine("SMALL_A01")
+    hw  = coordinator.get_hardware("SMALL_A01")
+
+    while True:
+        data = ws.receive()
+
+        # None means ESP32-B disconnected
+        if data is None:
+            print("[ESP32] Disconnected")
+            esp_connection = None
+            socketio.emit("coordinator_event", {
+                "type":    "hardware_disconnected",
+                "message": "ESP32 bridge disconnected",
+            })
+            break
+
+        print(f"[ESP32] Raw: {repr(data)}")
+
+        # ── Unwrap >t...< framing added by ESP32-B sketch ────────────
+        if data.startswith(">t") and data.endswith("<"):
+            line = data[2:-1]          # e.g. "PICK:2:3"
+        else:
+            # Ignore control frames (>r, >s) — not sensor data
+            continue
+
+        print(f"[ESP32] Parsed: {line}")
+        parts = line.split(":")
+
+        try:
+
+            # ----------------------------------------------------------
+            # IR:bin
+            # Hand detected entering bin — fire IR callback only.
+            # Weight has not changed yet; sequence engine starts its
+            # confirmation timer waiting for the load cell drop.
+            # ----------------------------------------------------------
+            if parts[0] == "IR" and len(parts) == 2:
+                bin_id = int(parts[1])
+                print(f"[ESP32] IR trigger → bin {bin_id}")
+                hw.simulate_ir_only(bin_id)
+
+            # ----------------------------------------------------------
+            # LC:bin:grams
+            # Raw load cell reading. Forward as a weight_change event
+            # so the supervisor dashboard can show live weight.
+            # Does NOT trigger a pick — just updates the display.
+            # ----------------------------------------------------------
+            elif parts[0] == "LC" and len(parts) == 3:
+                bin_id = int(parts[1])
+                grams  = float(parts[2])
+                print(f"[ESP32] Load cell → bin {bin_id}: {grams}g")
+                socketio.emit("weight_change", {
+                    "bin_id":   bin_id,
+                    "weight_g": grams,
+                    "cart_id":  "SMALL_A01",
+                })
+
+            # ----------------------------------------------------------
+            # PICK:bin:remaining
+            # Confirmed pick event from Mega (IR + load cell both fired).
+            # remaining = how many parts are left in the bin after pick.
+            # We calculate qty_picked from bin metadata and call
+            # simulate_pick() which fires IR callback + weight drop
+            # inside MockHardware, advancing the sequence engine.
+            # ----------------------------------------------------------
+            elif parts[0] == "PICK" and len(parts) == 3:
+                bin_id    = int(parts[1])
+                remaining = int(parts[2])
+                print(f"[ESP32] Confirmed pick → bin {bin_id}, {remaining} remaining")
+
+                bin_meta = eng._bin_meta(bin_id) if eng.config else None
+                if bin_meta:
+                    total_qty = bin_meta.get("qty", 1)
+                    picked    = total_qty - remaining
+                    unit_w    = bin_meta.get("unit_weight_g") or 100.0
+                    hw.simulate_pick(bin_id, max(picked, 1), unit_w)
+                else:
+                    print(f"[ESP32] Warning: no bin_meta for bin {bin_id} — variant loaded?")
+
+            # ----------------------------------------------------------
+            # WRONG:bin
+            # Mega detected a pick from the wrong bin.
+            # Emit error event — browser shows red flash + buzzer.
+            # ----------------------------------------------------------
+            elif parts[0] == "WRONG" and len(parts) == 2:
+                bin_id = int(parts[1])
+                print(f"[ESP32] Wrong pick → bin {bin_id}")
+                socketio.emit("engine_event", {
+                    "type":    "wrong_pick",
+                    "cart_id": "SMALL_A01",
+                    "bin_id":  bin_id,
+                })
+
+            # ----------------------------------------------------------
+            # ASSEMBLY_DONE
+            # Mega reports full sequence complete.
+            # ----------------------------------------------------------
+            elif parts[0] == "ASSEMBLY_DONE":
+                print("[ESP32] Assembly complete signal received")
+                socketio.emit("engine_event", {
+                    "type":    "assembly_complete",
+                    "cart_id": "SMALL_A01",
+                })
+
+            else:
+                print(f"[ESP32] Unknown command: {line}")
+
+        except (ValueError, IndexError) as e:
+            print(f"[ESP32] Parse error on '{line}': {e}")
+
+
+# ======================================================================
 # SocketIO lifecycle
 # ======================================================================
 
 @socketio.on("connect")
 def on_connect():
-    """Push full current state to a newly connected browser tab."""
-    # Emit mode
-    socketio.emit("coordinator_event", {
+    """Push full current state to the newly connected browser tab only."""
+    emit("coordinator_event", {
         "type": "mode_changed",
         "mode": coordinator.mode,
     })
 
-    # Emit status for each trolley
     for cart_id, inst in coordinator.trolleys.items():
-        socketio.emit("coordinator_event", {
+        emit("coordinator_event", {
             "type":             "trolley_status",
             "cart_id":          cart_id,
             "status":           inst.status,
@@ -294,10 +465,10 @@ def on_connect():
             "is_active":        cart_id == coordinator._active_cart_id,
             "mode":             coordinator.mode,
         })
-        # If a variant is loaded, replay the variant_loaded event so the UI renders bins
+
         if inst.engine.config is not None:
             cfg = inst.engine.config
-            socketio.emit("engine_event", {
+            emit("engine_event", {
                 "type":         "variant_loaded",
                 "cart_id":      cart_id,
                 "variant_id":   cfg.get("variant_id", ""),
@@ -305,14 +476,32 @@ def on_connect():
                 "bins":         cfg.get("bins", []),
                 "sequence":     cfg.get("pick_sequence", []),
             })
+            step = inst.engine._current_step()
+            if step is not None:
+                bin_meta = inst.engine._bin_meta(step["bin_id"]) or {}
+                emit("engine_event", {
+                    "type":        "step_started",
+                    "cart_id":     cart_id,
+                    "step":        step["step"],
+                    "bin_id":      step["bin_id"],
+                    "part_name":   bin_meta.get("part_name", ""),
+                    "part_number": bin_meta.get("part_number", ""),
+                    "qty":         step["qty"],
+                    "instruction": step.get("instruction", ""),
+                })
 
-    # Emit authority state for each trolley
     for cart_id, authority in authority_state.items():
-        socketio.emit("authority_event", {
+        emit("authority_event", {
             "type":      "authority_changed",
             "cart_id":   cart_id,
             "authority": authority,
         })
+
+    # Also tell new browser tabs whether hardware is currently connected
+    emit("coordinator_event", {
+        "type":    "hardware_connected" if esp_connection else "hardware_disconnected",
+        "message": "Arduino Mega online via ESP32" if esp_connection else "Running in simulation mode",
+    })
 
 
 if __name__ == "__main__":
@@ -320,5 +509,6 @@ if __name__ == "__main__":
     print("Fleet Manager:   http://localhost:5000/manager")
     print("Operator HMI:    http://localhost:5000/")
     print("Supervisor:      http://localhost:5000/supervisor")
+    print("ESP32 Bridge:    ws://0.0.0.0:5000/ws_esp")
     socketio.run(app, host="0.0.0.0", port=5000, debug=False,
                  allow_unsafe_werkzeug=True)

@@ -345,17 +345,23 @@ $("btn-upload-push").onclick = async () => {
   catch { logFleet("err", "UPLOAD", "Invalid JSON"); return; }
 
   const cartId = $("upload-target").value;
-  const r = await fetch("/api/fleet/variant/push", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({config, cart_id: cartId})
-  });
-  const d = await r.json();
+  let r, d;
+  try {
+    r = await fetch("/api/fleet/variant/push", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({config, cart_id: cartId})
+    });
+    d = await r.json();
+  } catch (err) {
+    logFleet("err", "UPLOAD", `Server error: ${err.message}`);
+    return;
+  }
   if (d.ok) {
-    logFleet("ok", "UPLOAD", `${file.name} pushed to ${d.pushed_to.join(", ")}`);
+    logFleet("ok", "UPLOAD", `${file.name} → ${d.pushed_to.join(", ")} (${d.variant_id})`);
     loadConfigs();
   } else {
-    logFleet("err", "UPLOAD", d.error || "failed");
+    logFleet("err", "UPLOAD", d.error || "server error");
   }
 };
 

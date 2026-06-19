@@ -411,6 +411,12 @@ socket.on("coordinator_event", ev => {
       $("hdr-state").textContent = "DONE";
       break;
     }
+    case "emergency_stop": {
+      logEvent("err", "EMERGENCY", ev.message || "Emergency stop — all trolleys reset");
+      showBanner("⚠ EMERGENCY STOP — all trolleys have been reset");
+      if ($("hdr-state")) $("hdr-state").textContent = "STOPPED";
+      break;
+    }
   }
 });
 

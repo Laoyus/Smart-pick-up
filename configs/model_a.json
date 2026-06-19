@@ -12,64 +12,64 @@
       "bin_id": 1,
       "part_number": "8T-4121",
       "part_name": "Bolt M10x40 Grade 10.9",
-      "unit_weight_g": 42.5,
-      "weight_tolerance_g": 3.0,
-      "initial_qty": 20,
+      "unit_weight_g": 43.865,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 4,
       "led_position": 0
     },
     {
       "bin_id": 2,
       "part_number": "2H-3719",
       "part_name": "Washer Flat M10",
-      "unit_weight_g": 4.8,
+      "unit_weight_g": 7.885,
       "weight_tolerance_g": 1.0,
-      "initial_qty": 40,
+      "initial_qty": 6,
       "led_position": 1
     },
     {
       "bin_id": 3,
       "part_number": "5P-1076",
       "part_name": "Hex Nut M10",
-      "unit_weight_g": 11.2,
+      "unit_weight_g": 7.021,
       "weight_tolerance_g": 1.5,
-      "initial_qty": 30,
+      "initial_qty": 6,
       "led_position": 2
     },
     {
       "bin_id": 4,
       "part_number": "9X-8256",
       "part_name": "Spring Washer M10",
-      "unit_weight_g": 3.4,
-      "weight_tolerance_g": 0.8,
-      "initial_qty": 40,
+      "unit_weight_g": 48.039,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 5,
       "led_position": 3
     },
     {
       "bin_id": 5,
       "part_number": "1P-7379",
       "part_name": "Bracket Engine Mount LH",
-      "unit_weight_g": 285.0,
-      "weight_tolerance_g": 8.0,
-      "initial_qty": 10,
+      "unit_weight_g": 9.949,
+      "weight_tolerance_g": 2.0,
+      "initial_qty": 4,
       "led_position": 4
     },
     {
       "bin_id": 6,
       "part_number": "1P-7380",
       "part_name": "Bracket Engine Mount RH",
-      "unit_weight_g": 285.0,
-      "weight_tolerance_g": 8.0,
-      "initial_qty": 10,
+      "unit_weight_g": 12.040,
+      "weight_tolerance_g": 2.0,
+      "initial_qty": 5,
       "led_position": 5
     }
   ],
   "pick_sequence": [
-    { "step": 1, "bin_id": 5, "qty": 1, "instruction": "Place LH bracket on fixture" },
-    { "step": 2, "bin_id": 6, "qty": 1, "instruction": "Place RH bracket on fixture" },
-    { "step": 3, "bin_id": 1, "qty": 4, "instruction": "Insert 4 bolts through bracket holes" },
+    { "step": 1, "bin_id": 5, "qty": 2, "instruction": "Place LH bracket on fixture" },
+    { "step": 2, "bin_id": 6, "qty": 2, "instruction": "Place RH bracket on fixture" },
+    { "step": 3, "bin_id": 1, "qty": 1, "instruction": "Insert 4 bolts through bracket holes" },
     { "step": 4, "bin_id": 2, "qty": 4, "instruction": "Add flat washers" },
-    { "step": 5, "bin_id": 4, "qty": 4, "instruction": "Add spring washers" },
-    { "step": 6, "bin_id": 3, "qty": 4, "instruction": "Thread hex nuts — hand tight" }
+    { "step": 5, "bin_id": 4, "qty": 2, "instruction": "Add spring washers" },
+    { "step": 6, "bin_id": 3, "qty": 3, "instruction": "Thread hex nuts — hand tight" }
   ],
   "cycle_time_target_sec": 90
 }
