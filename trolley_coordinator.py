@@ -338,6 +338,16 @@ class TrolleyCoordinator:
                 and self.rerouting_engine is not None):
             self.rerouting_engine.handle_wrong_pick(cart_id, payload)
 
+        # Surface model_b reroutes to supervisor + manager dashboards
+        if event_type == EventType.REROUTE_TRIGGERED:
+            wrong_bin = payload.get("wrong_bin_id", "?")
+            self._emit("rerouting_event", {
+                "type":    "reroute_triggered",
+                "cart_id": cart_id,
+                "bin_id":  payload.get("bin_id"),
+                "message": f"Operator accessed wrong bin {wrong_bin} — {payload.get('message', '')}",
+            })
+
         # In linked mode VARIANT_COMPLETE means phase done, not sequence done
         if self.mode == self.LINKED and event_type == EventType.VARIANT_COMPLETE:
             if cart_id == self._active_cart_id:

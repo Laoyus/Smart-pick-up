@@ -12,9 +12,9 @@
       "bin_id": 1,
       "part_number": "8T-4121",
       "part_name": "Bolt M10x40 Grade 10.9",
-      "unit_weight_g": 42.5,
-      "weight_tolerance_g": 3.0,
-      "initial_qty": 20,
+      "unit_weight_g": 43.865,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 4,
       "led_position": 0
     },
     {
@@ -30,9 +30,9 @@
       "bin_id": 3,
       "part_number": "5P-1076",
       "part_name": "Hex Nut M10",
-      "unit_weight_g": 11.2,
+      "unit_weight_g": 7.021,
       "weight_tolerance_g": 1.5,
-      "initial_qty": 30,
+      "initial_qty": 6,
       "led_position": 2
     },
     {

@@ -64,11 +64,11 @@
     }
   ],
   "pick_sequence": [
-    { "step": 1, "bin_id": 5, "qty": 2, "instruction": "Place LH bracket on fixture" },
-    { "step": 2, "bin_id": 6, "qty": 2, "instruction": "Place RH bracket on fixture" },
+    { "step": 1, "bin_id": 6, "qty": 2, "instruction": "Place LH bracket on fixture" },
+    { "step": 2, "bin_id": 5, "qty": 2, "instruction": "Place RH bracket on fixture" },
     { "step": 3, "bin_id": 1, "qty": 1, "instruction": "Insert 4 bolts through bracket holes" },
     { "step": 4, "bin_id": 2, "qty": 4, "instruction": "Add flat washers" },
-    { "step": 5, "bin_id": 4, "qty": 2, "instruction": "Add spring washers" },
+    { "step": 5, "bin_id": 1, "qty": 2, "instruction": "Add spring washers" },
     { "step": 6, "bin_id": 3, "qty": 3, "instruction": "Thread hex nuts — hand tight" }
   ],
   "cycle_time_target_sec": 90

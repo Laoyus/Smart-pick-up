@@ -1,8 +1,10 @@
 {
-  "variant_id": "CAT-D6-ENG-B2",
-  "variant_name": "Model B — Reroutable Engine Mount",
-  "description": "Engine-mount sub-assembly with bin-level rerouting for blocked or unavailable bins",
+  "variant_id": "CAT-D6-ENG-B2-ALT1",
+  "variant_name": "Model B Alt1 — Grade 8.8 Bolt Substitute",
+  "description": "Alternate spec for Model B — bin 1 swapped to Grade 8.8 bolts when Grade 10.9 is unavailable",
   "operating_mode": "reroutable",
+  "rerouted_from": "model_b.json",
+  "reroute_reason": "bin_1 substitution: Bolt M10x40 Grade 10.9 → Grade 8.8",
   "trolley": {
     "trolley_id": "T-SMALL-01",
     "type": "small_parts",
@@ -12,9 +14,9 @@
   "bins": [
     {
       "bin_id": 1,
-      "part_number": "8T-4121",
-      "part_name": "Bolt M10x40 Grade 10.9",
-      "unit_weight_g": 43.865,
+      "part_number": "8T-4119",
+      "part_name": "Bolt M10x40 Grade 8.8",
+      "unit_weight_g": 41.200,
       "weight_tolerance_g": 10.0,
       "initial_qty": 4,
       "led_position": 0
@@ -69,18 +71,13 @@
   "pick_sequence": [
     { "step": 1, "bin_id": 5, "qty": 2, "instruction": "Place LH bracket on fixture" },
     { "step": 2, "bin_id": 6, "qty": 2, "instruction": "Place RH bracket on fixture" },
-    { "step": 3, "bin_id": 1, "qty": 2, "instruction": "Insert 4 bolts through bracket holes" },
+    { "step": 3, "bin_id": 1, "qty": 4, "instruction": "Insert 4 Grade 8.8 bolts through bracket holes" },
     { "step": 4, "bin_id": 2, "qty": 4, "instruction": "Add flat washers" },
     { "step": 5, "bin_id": 4, "qty": 2, "instruction": "Add spring washers" },
     { "step": 6, "bin_id": 3, "qty": 3, "instruction": "Thread hex nuts — hand tight" }
   ],
 
   "substitution_rules": {
-    "bin_1": {
-      "compatible_parts": ["Bolt M10x40 Grade 8.8"],
-      "alternate_variant": "model_b_alt1.json",
-      "display_message": "Grade 8.8 bolt cleared for this sub-assembly — rerouting to alternate spec"
-    },
     "bin_4": {
       "compatible_parts": ["Washer Flat M10"],
       "alternate_bin_id": 2,

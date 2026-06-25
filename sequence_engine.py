@@ -16,6 +16,7 @@ Confirmation flow (weight-based):
 """
 
 import json
+import os
 import time
 import threading
 from dataclasses import dataclass, field, asdict
@@ -37,6 +38,7 @@ class EventType(str, Enum):
     GHOST_IR            = "ghost_ir"
     VARIANT_COMPLETE    = "variant_complete"
     OPERATOR_STUCK      = "operator_stuck"
+    REROUTE_TRIGGERED   = "reroute_triggered"
 
 
 # ---------- engine state ----------
@@ -91,6 +93,7 @@ class SequenceEngine:
         self.config: Optional[dict] = None
         self._lock = Lock()
         self._stuck_timer: Optional[Timer] = None
+        self._config_dir: str = ""
 
         # Per-step monitor state (reset at each step)
         self._step_active         = False   # monitor loop runs while True
@@ -104,6 +107,7 @@ class SequenceEngine:
     def load_variant(self, config_path_or_dict) -> None:
         """Load variant from file path or already-parsed dict. Primes hardware."""
         if isinstance(config_path_or_dict, str):
+            self._config_dir = os.path.dirname(os.path.abspath(config_path_or_dict))
             with open(config_path_or_dict, "r") as f:
                 cfg = json.load(f)
         else:
@@ -315,12 +319,27 @@ class SequenceEngine:
             return
 
         if bin_id != step["bin_id"]:
+            # For reroutable configs (model_b): wrong-bin touch triggers reroute
+            if self._try_reroute_on_wrong_bin(bin_id, step):
+                return
+
             # Wrong bin accessed
             self.state.errors += 1
             self.hw.set_led(bin_id, "error")
             self.hw.set_buzzer(True)
             Timer(0.6, lambda: self.hw.set_buzzer(False)).start()
-            Timer(1.5, lambda: self.hw.set_led(bin_id, "off")).start()
+
+            def _clear_wrong_bin(bid: int) -> None:
+                # Only reset to "off" if that bin hasn't since become the active step
+                cur = self._current_step()
+                if cur is None or cur["bin_id"] != bid:
+                    self.hw.set_led(bid, "off")
+                else:
+                    # Bin is now active — re-apply active state so display is correct
+                    self.hw.set_led(bid, "active")
+                    self.hw.set_display(bid, str(cur["qty"]))
+
+            Timer(1.5, lambda: _clear_wrong_bin(bin_id)).start()
             self._emit(EventType.PICK_WRONG_BIN, {
                 "step": step["step"],
                 "expected_bin": step["bin_id"],
@@ -375,6 +394,60 @@ class SequenceEngine:
         self.hw.set_led(step["bin_id"], "error")
         Timer(0.5, lambda: self.hw.set_led(step["bin_id"], "active")).start()
         self._reset_stuck_timer()
+
+    def _try_reroute_on_wrong_bin(self, wrong_bin_id: int, step: dict) -> bool:
+        """Only active for model_b (operating_mode=reroutable). Returns True if reroute was applied."""
+        if self.config.get("operating_mode") != "reroutable":
+            return False
+
+        rules = self.config.get("substitution_rules", {})
+        rule = rules.get(f"bin_{step['bin_id']}")
+        if rule is None:
+            return False
+
+        self._emit(EventType.REROUTE_TRIGGERED, {
+            "bin_id": step["bin_id"],
+            "wrong_bin_id": wrong_bin_id,
+            "message": rule["display_message"]
+        })
+        self.hw.set_led(step["bin_id"], "off")
+
+        if "alternate_bin_id" in rule:
+            # Redirect this step to the alternate bin in-place
+            self.config["pick_sequence"][self.state.current_step_idx]["bin_id"] = rule["alternate_bin_id"]
+            self._restart_current_step()
+            return True
+
+        if "alternate_variant" in rule:
+            # Hot-swap to alternate config, restart the same step
+            alt_path = os.path.join(self._config_dir, rule["alternate_variant"])
+            with open(alt_path) as f:
+                alt_cfg = json.load(f)
+            self._reload_config(alt_cfg)
+            self._restart_current_step()
+            return True
+
+        return False
+
+    def _restart_current_step(self) -> None:
+        """Stop current monitor and re-run the current step from scratch."""
+        self._step_active = False
+        self._cancel_stuck_timer()
+        self.state.current_step_idx -= 1
+        Timer(0.1, self._advance_to_next_step).start()
+
+    def _reload_config(self, cfg: dict) -> None:
+        """Hot-swap to alternate config during reroute. Preserves current step index."""
+        self.config = cfg
+        self.state.variant_id = cfg["variant_id"]
+        self.state.variant_name = cfg["variant_name"]
+        self.state.total_steps = len(cfg["pick_sequence"])
+        self.state.bin_qty_remaining = {b["bin_id"]: b["initial_qty"] for b in cfg["bins"]}
+        for b in cfg["bins"]:
+            self.hw.set_led(b["bin_id"], "off")
+            self.hw.set_display(b["bin_id"], str(b["initial_qty"]))
+            if hasattr(self.hw, "prime_bin"):
+                self.hw.prime_bin(b["bin_id"], b["unit_weight_g"], b["initial_qty"])
 
     def _emit(self, event_type: EventType, payload: dict) -> None:
         payload_with_meta = {

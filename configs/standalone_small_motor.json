@@ -14,36 +14,36 @@
       "bin_id": 1,
       "part_number": "8T-4121",
       "part_name": "Bolt M10x40 Grade 10.9",
-      "unit_weight_g": 42.5,
-      "weight_tolerance_g": 3.0,
-      "initial_qty": 24,
+      "unit_weight_g": 43.865,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 4,
       "led_position": 0
     },
     {
       "bin_id": 2,
       "part_number": "2H-3719",
       "part_name": "Washer Flat M10",
-      "unit_weight_g": 4.8,
+      "unit_weight_g": 7.885,
       "weight_tolerance_g": 1.0,
-      "initial_qty": 48,
+      "initial_qty": 6,
       "led_position": 1
     },
     {
       "bin_id": 3,
       "part_number": "5P-1076",
-      "part_name": "Hex Nut M10 Nylock",
-      "unit_weight_g": 11.2,
+      "part_name": "Hex Nut M10",
+      "unit_weight_g": 7.021,
       "weight_tolerance_g": 1.5,
-      "initial_qty": 24,
+      "initial_qty": 6,
       "led_position": 2
     },
     {
       "bin_id": 4,
       "part_number": "9X-8256",
       "part_name": "Spring Washer M10",
-      "unit_weight_g": 3.4,
-      "weight_tolerance_g": 0.8,
-      "initial_qty": 24,
+      "unit_weight_g": 48.039,
+      "weight_tolerance_g": 10.0,
+      "initial_qty": 5,
       "led_position": 3
     },
     {

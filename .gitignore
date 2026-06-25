@@ -1,6 +1,10 @@
+.env
 __pycache__/
 *.pyc
-*.pptx
 *.mp4
-*.png
-.vscode/
+*.mov
+*.avi
+*.mkv
+*.pptx
+*.ppt
+=3.5

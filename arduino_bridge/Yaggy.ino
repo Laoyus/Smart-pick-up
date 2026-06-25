@@ -2,9 +2,9 @@
 // Team Decepticons@123 · Caterpillar Tech Challenge 2026
 //
 // Hardware on this sketch:
-//   6 × IR sensors              → Pins 22–27
+//   6 × IR sensors              → Pins 22–27  (bin 2 skipped — hardware fault)
 //   6 × HX711 load cell ADCs    → DOUT/SCK pairs below
-//   6 × TM1637 4-digit displays → CLK/DIO pairs below
+//   6 × TM1637 4-digit displays → CLK/DIO pairs below  (bin 0 display fault — ignored)
 //   6 × WS2812B NeoPixel strips → Data pins 44–49
 //   1 × Active buzzer module    → Pin 40  (I/O pin of module)
 //   1 × Emergency stop button   → Pin 41  (other terminal to GND)
@@ -41,12 +41,12 @@
 //            5    13   12
 //
 //   TM1637: Bin  CLK  DIO
-//            0    28   29
-//            1    30   31
-//            2    32   33
-//            3    34   35
-//            4    36   37
-//            5    38   39
+//            0    30   31
+//            1    32   33
+//            2    34   35
+//            3    36   37
+//            4    38   39
+//            5    42   43
 //
 // ─── Calibration ─────────────────────────────────────────────────────────────
 //   Each load cell has its own sensitivity. CALIB[N] = raw_ADC_units / gram.
@@ -72,8 +72,8 @@ const int BUTTON_PIN = 41; // emergency stop button (other terminal → GND)
 const int HX_DOUT[6] = {3, 5, 7, 9, 11, 13};
 const int HX_SCK[6] = {2, 4, 6, 8, 10, 12};
 
-const int TM_CLK[6] = {28, 30, 32, 34, 36, 38}; // even pins → CLK
-const int TM_DIO[6] = {29, 31, 33, 35, 37, 39}; // odd  pins → DIO
+const int TM_CLK[6] = {28, 30, 32, 34, 36, 38};
+const int TM_DIO[6] = {29, 31, 33, 35, 37, 39};
 
 // ── Calibration (raw ADC units per gram) ─────────────────────────────────────
 float CALIB[6] = {425.28, 456.175, 439.58, -394.01, -420.84, -443.8};
@@ -81,7 +81,7 @@ float CALIB[6] = {425.28, 456.175, 439.58, -394.01, -420.84, -443.8};
 // ── Hardware objects ──────────────────────────────────────────────────────────
 HX711 scale[6];
 
-// TM1637 display objects — pins 28–39 (even=CLK, odd=DIO)
+// TM1637 display objects — CLK/DIO must match TM_CLK/TM_DIO arrays above
 TM1637Display disp[6] = {
     TM1637Display(28, 29),
     TM1637Display(30, 31),
@@ -105,12 +105,12 @@ Adafruit_NeoPixel *neo[6] = {&ns0, &ns1, &ns2, &ns3, &ns4, &ns5};
 // ── IR state ──────────────────────────────────────────────────────────────────
 bool lastState[6];
 unsigned long lastTriggerMs[6];
-const int DEBOUNCE_MS = 50;
+const int DEBOUNCE_MS = 150;
 
-// ── Emergency button state ───────────    ─────────────────────────────────────────
+// ── Emergency button state ────────────────────────────────────────────────────
 bool lastBtnState = HIGH;
 unsigned long lastBtnMs = 0;
-const int BTN_DEBOUNCE = 100;
+const int BTN_DEBOUNCE = 300;
 
 // ── Buzzer (non-blocking) ─────────────────────────────────────────────────────
 // tone(pin, freq, duration) drives passive buzzers at full volume; also works
@@ -118,8 +118,12 @@ const int BTN_DEBOUNCE = 100;
 // tone() auto-stops after duration — no manual timer needed.
 
 // ── Auto weight stream ────────────────────────────────────────────────────────
+// Toggle with STREAM:1 / STREAM:0 from Serial Monitor.
+// Prints all 6 bin weights every 2s — useful for standalone testing.
+// Python polling works independently; these extra WEIGHT: lines are harmless.
+bool streamOn = false;
 unsigned long lastStreamMs = 0;
-const unsigned long STREAM_INTERVAL = 2000; // push all 6 weights every 2 s
+const unsigned long STREAM_INTERVAL = 2000;
 
 // ── Display blink state (used as LED substitute) ──────────────────────────────
 // When a bin is "active", its TM1637 blinks to draw the operator's attention.
@@ -203,6 +207,7 @@ void setup()
     Serial2.println("READY");
 }
 
+int loopcount = 0;
 void loop()
 {
     unsigned long now = millis();
@@ -215,6 +220,7 @@ void loop()
         {
             if (now - lastTriggerMs[i] >= (unsigned long)DEBOUNCE_MS)
             {
+                Serial.println("ir trig");
                 lastTriggerMs[i] = now;
                 Serial2.print("IR_TRIGGERED:");
                 Serial2.println(i);
@@ -264,14 +270,27 @@ void loop()
         }
     }
 
-    // ── Auto weight stream — push all bins every 2 s ─────────────────────────
+    loopcount++;
+    if (loopcount % 200 == 0)
+    {
+        // ── Auto weight stream ────────────────────────────────────────────────────
+        Serial.print("stream on: ");
+        Serial.println(streamOn);
+    }
+    // Serial.print(".");
+    // if (streamOn && (now - lastStreamMs) >= STREAM_INTERVAL)
     if ((now - lastStreamMs) >= STREAM_INTERVAL)
     {
+        // Serial.println("enter wights loop");
         lastStreamMs = now;
         for (int k = 0; k < 6; k++)
         {
             if (scale[k].is_ready())
             {
+                if (k == 2)
+                {
+                    Serial.println("entered");
+                }
                 float g = scale[k].get_units(3);
                 Serial2.print("WEIGHT:");
                 Serial2.print(k);
@@ -299,6 +318,8 @@ void loop()
         if (c == '\n')
         {
             serialBuf.trim();
+            Serial.print("input: ");
+            Serial.println(serialBuf);
             handleCommand(serialBuf);
             serialBuf = "";
         }
@@ -452,19 +473,12 @@ void handleCommand(const String &cmd)
             Serial2.println(binIdx);
         }
 
-        // RESET  — server disconnected; clear all outputs immediately
+        // STREAM:1 / STREAM:0  — toggle auto weight broadcast every 2s
     }
-    else if (cmd == "RESET")
+    else if (cmd.startsWith("STREAM:"))
     {
-        noTone(BUZZER_PIN);
-        for (int k = 0; k < 6; k++)
-        {
-            blinkEnabled[k] = false;
-            disp[k].setBrightness(0);
-            disp[k].clear();
-            neo[k]->clear();
-            neo[k]->show();
-        }
-        lastCmdMs = 0;
+        streamOn = (cmd.charAt(7) == '1');
+        Serial2.println(streamOn ? "STREAM ON" : "STREAM OFF");
+        lastStreamMs = millis();
     }
 }
