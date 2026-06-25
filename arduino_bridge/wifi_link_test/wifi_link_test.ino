@@ -1,7 +1,7 @@
 // wifi_link_test/wifi_link_test.ino
 // ─────────────────────────────────────────────────────────────────────────────
 // WiFi Bridge Round-Trip Connectivity Test
-// Smart Assistive Part Pick System — Team Decepticons@123
+// Smart Assistive Part Pick System
 //
 // Tests the FULL path in both directions:
 //

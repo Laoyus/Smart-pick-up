@@ -1,20 +1,17 @@
 """
-app.py  —  Round 3
-==================
-Flask + Flask-SocketIO server for the Smart Assistive Part Pick simulation.
+app.py
+======
+Flask + Flask-SocketIO server for the Smart Assistive Part Pick system.
 
-Round 3 additions over Round 2:
+Core features:
   • TrolleyCoordinator manages SMALL_A01 + LARGE_A01 simultaneously.
   • ReroutingEngine handles substitution-rule based adaptive path selection.
   • fleet_api Blueprint provides REST endpoints for wireless variant management.
-  • /manager  →  Fleet control dashboard (new page).
-  • /operator →  Dual-trolley operator HMI (replaces /   for R3 operator page).
-  • /         →  still serves trolley.html for Round 2 backwards compatibility.
-  • /supervisor remains unchanged in URL; content is enhanced.
+  • /manager    →  Fleet control dashboard.
+  • /operator   →  Dual-trolley operator HMI.
+  • /supervisor →  Supervisor dashboard.
 
-Round 2 API endpoints remain fully functional (they target SMALL_A01 by default).
-
-ESP32 WiFi Bridge (finale addition):
+ESP32 WiFi Bridge:
   • /ws_esp  →  WebSocket endpoint for ESP32-B relay.
                 Receives Mega serial events wrapped in >t...<  framing.
                 Feeds them into MockHardware (same as sim buttons).
@@ -24,8 +21,8 @@ Run:
     python app.py
 
 Open:
-    http://localhost:5000/manager    ← Fleet control (R3)
-    http://localhost:5000/          ← Operator HMI   (dual-trolley, R3)
+    http://localhost:5000/manager    ← Fleet control
+    http://localhost:5000/          ← Operator HMI   (dual-trolley)
     http://localhost:5000/supervisor ← Supervisor dashboard
 """
 
@@ -94,7 +91,7 @@ def _on_emergency_stop():
 if hasattr(hw_small, "register_emergency_callback"):
     hw_small.register_emergency_callback(_on_emergency_stop)
 
-# Round 2 backwards-compat aliases (always refer to SMALL_A01)
+# Convenience aliases — always refer to SMALL_A01
 hardware = hw_small
 engine   = coordinator.get_engine("SMALL_A01")
 
@@ -123,12 +120,12 @@ def manager_view():
 
 
 # ======================================================================
-# Round 2 config API  (backwards compatible — targets SMALL_A01)
+# Config API (targets SMALL_A01)
 # ======================================================================
 
 @app.route("/api/variants")
 def list_variants():
-    """List standalone variant configs for the Round 2 operator page."""
+    """List standalone variant configs for the operator page."""
     files = sorted(f for f in os.listdir(CONFIG_DIR) if f.endswith(".json"))
     out = []
     for fn in files:
@@ -150,7 +147,7 @@ def list_variants():
 
 @app.route("/api/variant/load", methods=["POST"])
 def load_variant():
-    """Round 2: load a variant onto SMALL_A01."""
+    """Load a variant onto SMALL_A01."""
     fn = (request.json or {}).get("filename")
     if not fn or not fn.endswith(".json"):
         return jsonify({"error": "bad filename"}), 400
@@ -168,7 +165,7 @@ def load_variant():
 
 @app.route("/api/variant/start", methods=["POST"])
 def start_variant():
-    """Round 2: start SMALL_A01 engine."""
+    """Start SMALL_A01 engine."""
     if engine.config is None:
         return jsonify({"error": "no variant loaded"}), 400
     coordinator.activate("SMALL_A01")
@@ -177,13 +174,13 @@ def start_variant():
 
 @app.route("/api/variant/reset", methods=["POST"])
 def reset_variant():
-    """Round 2: reset SMALL_A01."""
+    """Reset SMALL_A01."""
     coordinator.reset_trolley("SMALL_A01")
     return jsonify({"ok": True})
 
 
 # ======================================================================
-# Simulation endpoints  (cart_id defaults to SMALL_A01 for R2 compat)
+# Simulation endpoints  (cart_id defaults to SMALL_A01)
 # ======================================================================
 
 def _resolve_hw_engine(data: dict):
@@ -254,12 +251,12 @@ def sim_wrong_qty():
 
 
 # ======================================================================
-# Snapshot (supports both R2 and R3)
+# Snapshot
 # ======================================================================
 
 @app.route("/api/snapshot")
 def snapshot():
-    """Return coordinator snapshot (all trolleys) or just SMALL_A01 for R2 compat."""
+    """Return coordinator snapshot (all trolleys) or just SMALL_A01."""
     return jsonify(coordinator.snapshot())
 
 
@@ -670,7 +667,7 @@ def on_connect():
 
 
 if __name__ == "__main__":
-    print("Smart Assistive Part Pick — Round 3 Simulation Server")
+    print("Smart Assistive Part Pick — Server")
     if hasattr(hw_small, "_transport"):
         _t = hw_small._transport.upper()
         _extra = "waiting for ESP32 on /ws_esp" if _t == "WIFI" else f"serial on {hw_small._port}"

@@ -1,7 +1,7 @@
 """
 rerouting_engine.py
 ===================
-Adaptive pick-path rerouting — the "Google Maps reroute" feature for Round 3.
+Adaptive pick-path rerouting engine.
 
 When an operator picks the wrong part, this engine checks whether the
 incorrectly-picked part is a valid substitute defined in the current config's

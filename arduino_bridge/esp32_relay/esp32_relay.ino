@@ -1,7 +1,7 @@
 // esp32_relay/esp32_relay.ino  —  Flash this to ESP32 #2 (the one wired to Arduino)
 // ─────────────────────────────────────────────────────────────────────────────
 // Smart Assistive Part Pick — Production WiFi Relay
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Industrial Assembly Aid Platform
 //
 // Full data path:
 //

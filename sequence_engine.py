@@ -146,7 +146,7 @@ class SequenceEngine:
         self._advance_to_next_step()
 
     def reset(self) -> None:
-        """Clear all state and LEDs. Used between demos."""
+        """Clear all state and LEDs."""
         self._step_active = False
         self._cancel_stuck_timer()
         if self.config:

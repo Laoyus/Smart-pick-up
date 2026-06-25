@@ -1,7 +1,7 @@
 """
 fleet_api.py
 ============
-Flask Blueprint providing the wireless fleet-management REST API for Round 3.
+Flask Blueprint providing the wireless fleet-management REST API.
 
 Mount in app.py:
     from fleet_api import make_fleet_blueprint

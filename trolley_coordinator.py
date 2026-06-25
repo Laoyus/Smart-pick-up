@@ -1,7 +1,7 @@
 """
 trolley_coordinator.py
 ======================
-Multi-trolley orchestration for Round 3 dual-trolley operation.
+Multi-trolley orchestration for dual-trolley operation.
 
 Manages N trolleys (each with its own SequenceEngine + MockHardware) and
 coordinates between them in two operating modes:

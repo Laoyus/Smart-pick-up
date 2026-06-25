@@ -1,5 +1,5 @@
 // LED Strip Test — WS2812B / NeoPixel
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Smart Assistive Part Pick System
 //
 // IR HIGH → strip glows WHITE
 // IR LOW  → strip OFF

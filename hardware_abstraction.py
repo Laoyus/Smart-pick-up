@@ -6,7 +6,7 @@ Defines the hardware interface used by sequence_engine.py.
 This is a MOCK implementation that broadcasts
 events over WebSocket so the browser frontend can visualize the trolley.
 
-For Round 3 prototype (Raspberry Pi), ONLY this file changes:
+For Raspberry Pi hardware deployment, ONLY this file changes:
   - set_led()        -> drives NeoPixel via rpi_ws281x
   - read_weight()    -> reads HX711 load cell ADC
   - on_ir_break()    -> hooks RPi.GPIO interrupt on IR sensor pin
@@ -14,7 +14,7 @@ For Round 3 prototype (Raspberry Pi), ONLY this file changes:
   - set_buzzer()     -> GPIO pin high/low
 
 The sequence engine above this layer is completely unaware which backend
-is running. Same code ships to the prototype.
+is running. Same code ships to hardware.
 """
 
 import os

@@ -1,7 +1,6 @@
 """
 CAD → JSON Variant Converter
-Smart Assistive Part Pick System | Team Decepticons@123
-Caterpillar Tech Challenge 2026
+Smart Assistive Part Pick System
 
 Converts STEP / IGES / STL assembly files into variant JSON configs
 compatible with the Smart Part Pick sequence engine.
@@ -30,7 +29,7 @@ from PyQt6.QtGui import (
 )
 
 # ─────────────────────────────────────────────
-#  COLOUR PALETTE  (Caterpillar industrial)
+#  COLOUR PALETTE  (industrial)
 # ─────────────────────────────────────────────
 CAT_YELLOW   = "#F4C430"
 CAT_BLACK    = "#1A1A1A"

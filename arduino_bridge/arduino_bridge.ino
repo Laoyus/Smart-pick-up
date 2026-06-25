@@ -1,5 +1,5 @@
 // Smart Assistive Part Pick System — Arduino Full Bridge
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Industrial Assembly Aid Platform
 //
 // Hardware on this sketch:
 //   6 × IR sensors              → Pins 22–27

@@ -1,5 +1,5 @@
 // Smart Assistive Part Pick System — Part Weight Measurement Utility
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Smart Assistive Part Pick System
 //
 // Flash this sketch (separate from the main bridge) to measure part unit weights.
 // Use the measured values to update unit_weight_g in your JSON config files.

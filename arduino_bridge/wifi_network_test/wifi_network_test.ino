@@ -1,7 +1,7 @@
 // wifi_network_test/wifi_network_test.ino
 // ─────────────────────────────────────────────────────────────────────────────
 // WiFi Network Connectivity Test — ESP32 #2 side
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Smart Assistive Part Pick System
 //
 // PURPOSE:
 //   Prove that ESP32 #2 (the Arduino-side relay) can reach this laptop over

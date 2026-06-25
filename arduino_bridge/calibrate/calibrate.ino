@@ -1,5 +1,5 @@
 // Load Cell Calibration Utility
-// Team Decepticons@123 · Caterpillar Tech Challenge 2026
+// Smart Assistive Part Pick System
 //
 // Commands (Serial Monitor, 9600 baud, Newline ending):
 //   TARE:N        — zero bin N (empty it first)

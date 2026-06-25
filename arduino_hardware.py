@@ -342,10 +342,9 @@ arduino_hardware.py
 Real-hardware backend for the Smart Assistive Part Pick System.
 Drop-in replacement for MockHardware when SIMULATION_MODE=False.
 
-ROUND 3 FINALE — WiFi edition
-==============================
-All serial communication that previously went over USB (COM6) now travels
-wirelessly via the ESP32 WebSocket bridge:
+WiFi Edition
+============
+All serial communication travels wirelessly via the ESP32 WebSocket bridge:
 
   Previously:  Laptop COM6  ←serial→  Arduino Mega
   Now:         Laptop Flask ←WiFi→  ESP32-B ←UART→  Arduino Mega
